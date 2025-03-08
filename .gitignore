@@ -1,3 +1,7 @@
 .DS_Store
 .vscode/launch.json
 temp/
+bin/
+
+
+.alpha2.yaml

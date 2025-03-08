@@ -15,28 +15,93 @@ import (
 	"github.com/gocolly/colly/v2/queue"
 	"github.com/puzpuzpuz/xsync/v3"
 	"github.com/rs/zerolog/log"
+	"gorm.io/gorm"
 )
 
 type PMFCrawler struct {
 	fundManagers        []*crawler.FundManager
 	fundManagerVsReport *xsync.MapOf[string, []*Report]
+	collector           *colly.Collector
+	queue               *queue.Queue
 }
 
-func (p *PMFCrawler) CrawlFund(forDate *time.Time, cb crawler.SaveFund) []*crawler.Fund {
-	p.fundManagers = make([]*crawler.FundManager, 0)
-	p.fundManagerVsReport = xsync.NewMapOf[string, []*Report]()
-
-	c := colly.NewCollector(colly.Debugger(&crawler.LogDebugger{}))
-	extensions.RandomUserAgent(c)
-	extensions.Referer(c)
-
-	q, _ := queue.New(
+func NewPMFCrawler() *PMFCrawler {
+	queue, _ := queue.New(
 		30,
 		nil,
 	)
+	return &PMFCrawler{
+		fundManagers:        make([]*crawler.FundManager, 0),
+		fundManagerVsReport: xsync.NewMapOf[string, []*Report](),
+		collector:           crawler.NewCollector(),
+		queue:               queue,
+	}
+}
+
+func (p *PMFCrawler) CrawlAllFund(forDate *time.Time, cb crawler.SaveFund) []*crawler.Fund {
+	p.registerCrawler(cb)
+	p.registerCrawlerError()
+
+	portfolioManagerIDs := CrawlFundManagarIDs()
+	for _, uid := range portfolioManagerIDs {
+		for i := 1; i <= 12; i++ {
+			p.queue.AddRequest(CreateRequest(uid, forDate.Year(), int(forDate.Month())))
+		}
+	}
+
+	p.queue.Run(p.collector)
+
+	return nil
+}
+
+func (p *PMFCrawler) CrawlFundWithManager(UID string, forDate *time.Time, cb crawler.SaveFund) []*crawler.Fund {
+	p.registerCrawler(cb)
+	p.registerCrawlerError()
+	p.queue.AddRequest(CreateRequest(UID, forDate.Year(), int(forDate.Month())))
+	p.queue.Run(p.collector)
+	return nil
+}
+
+func (p *PMFCrawler) ReTryFailed(cb crawler.SaveFund) error {
+	db := crawler.Conn()
+	var events []crawler.CrawlerEvent
+	p.registerCrawler(cb)
+	db.Model(&crawler.CrawlerEvent{}).FindInBatches(&events, 100, func(tx *gorm.DB, batch int) error {
+		bulkQueue, _ := queue.New(
+			30,
+			nil,
+		)
+		for _, event := range events {
+			UID := event.Data["UID"]
+			year, _ := strconv.Atoi(event.Data["year"])
+			month, _ := strconv.Atoi(event.Data["month"])
+			if err := bulkQueue.AddRequest(CreateRequest(UID, year, month)); err != nil {
+				log.Error().Err(err).Msg("Error during AddRequest in ReTryFailed")
+			}
+		}
+
+		p.collector.OnScraped(func(r *colly.Response) {
+			err := tx.Model(&crawler.CrawlerEvent{}).
+				Where("data->>'UID' = ? AND data->>'year' = ? AND data->>'month' = ?", r.Ctx.Get("UID"), r.Ctx.Get("year"), r.Ctx.Get("month")).
+				Delete(&crawler.CrawlerEvent{}).Error
+			if err != nil {
+				log.Error().Err(err).Msg("Error during Delete in ReTryFailed")
+			}
+		})
+
+		p.collector.OnError(func(r *colly.Response, err error) {
+			log.Error().Err(err).Msg("Error during colly request in ReTryFailed")
+		})
+
+		return bulkQueue.Run(p.collector)
+	})
+	return nil
+}
+
+func (p *PMFCrawler) registerCrawler(cb crawler.SaveFund) {
 
 	//General Information
-	c.OnHTML("#main-content", func(e *colly.HTMLElement) {
+	p.collector.OnHTML("#main-content", func(e *colly.HTMLElement) {
 		report := p.GetReport(e.Request.Ctx)
 		e.DOM.Find("strong").EachWithBreak(func(i int, s *goquery.Selection) bool {
 			if strings.Contains(s.Text(), "General Information") {
@@ -105,7 +170,7 @@ func (p *PMFCrawler) CrawlFund(forDate *time.Time, cb crawler.SaveFund) []*crawl
 	})
 
 	//E. Performance Data
-	c.OnHTML("#main-content", func(e *colly.HTMLElement) {
+	p.collector.OnHTML("#main-content", func(e *colly.HTMLElement) {
 		report := p.GetReport(e.Request.Ctx)
 		var returnskey []string
 		var turnOverkey []string
@@ -224,7 +289,7 @@ func (p *PMFCrawler) CrawlFund(forDate *time.Time, cb crawler.SaveFund) []*crawl
 		})
 	})
 
-	c.OnHTML("#main-content", func(e *colly.HTMLElement) {
+	p.collector.OnHTML("#main-content", func(e *colly.HTMLElement) {
 		report := p.GetReport(e.Request.Ctx)
 		e.DOM.Find("strong").EachWithBreak(func(i int, s *goquery.Selection) bool {
 			if strings.Contains(s.Text(), "Data on Complaints") {
@@ -250,14 +315,7 @@ func (p *PMFCrawler) CrawlFund(forDate *time.Time, cb crawler.SaveFund) []*crawl
 		})
 	})
 
-	portfolioManagerIDs := CrawlFundManagarIDs()
-	for _, uid := range portfolioManagerIDs {
-		for i := 1; i <= 12; i++ {
-			q.AddRequest(CreateRequest(uid, forDate.Year(), int(forDate.Month())))
-		}
-	}
-
-	c.OnScraped(func(r *colly.Response) {
+	p.collector.OnScraped(func(r *colly.Response) {
 		if val, ok := p.fundManagerVsReport.Load(r.Ctx.Get("UID")); ok {
 			cb(reportToFundConverter(val))
 		}
@@ -270,7 +328,12 @@ func (p *PMFCrawler) CrawlFund(forDate *time.Time, cb crawler.SaveFund) []*crawl
 		p.fundManagerVsReport.Delete(r.Ctx.Get("UID"))
 	})
 
-	c.OnError(func(r *colly.Response, err error) {
+	// p.queue.AddRequest(CreateRequest(UID, forDate.Year(), int(forDate.Month())))
+
+}
+
+func (p *PMFCrawler) registerCrawlerError() {
+	p.collector.OnError(func(r *colly.Response, err error) {
 		log.Error().Int("Status", r.StatusCode).
 			Str("year", r.Ctx.Get("year")).
 			Str("month", r.Ctx.Get("month")).
@@ -296,16 +359,6 @@ func (p *PMFCrawler) CrawlFund(forDate *time.Time, cb crawler.SaveFund) []*crawl
 				Err(err).Msg("Create CrawlerEvent Failed")
 		}
 	})
-
-	q.Run(c)
-
-	res := make([]*crawler.Fund, 0)
-	// for _, uid := range portfolioManagerIDs {
-	// 	reports := reportToFundConverter(p.fundManagerVsReport[uid])
-	// 	res = append(res, reports...)
-	// }
-
-	return res
 }
 
 func parseReturnsData(td *goquery.Selection, strategy string, returnskey []string, report *Report) *DiscretionaryService {
