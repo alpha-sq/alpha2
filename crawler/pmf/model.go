@@ -15,7 +15,7 @@ type Report struct {
 }
 
 type DiscretionaryService struct {
-	ID       int
+	ID       uint64
 	Strategy string
 	FundName string
 	AUM      float64
@@ -49,6 +49,17 @@ func (r *Report) FindServiceByFundName(fundName string) *DiscretionaryService {
 		FundName:     fundName,
 		ReturnsData:  make(map[string]float64),
 		TurnOverData: make(map[string]float64),
+	}
+
+	for _, fund := range r.GeneralInfo.Funds {
+		if fund.Name == fundName {
+			service = &DiscretionaryService{
+				ID:           fund.ID,
+				FundName:     fundName,
+				ReturnsData:  make(map[string]float64),
+				TurnOverData: make(map[string]float64),
+			}
+		}
 	}
 	r.Services = append(r.Services, *service)
 

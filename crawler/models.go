@@ -44,6 +44,9 @@ type Fund struct {
 	Yr4Returns     *float64 `json:"4_year_return"`
 	Yr5Returns     *float64 `json:"5_year_return"`
 	OverAllReturns *float64 `json:"over_all_return"`
+
+	MaxDrawdown *float64 `json:"max_drawdown"`
+	SharpeRatio *float64 `json:"sharpe_ratio"`
 }
 
 type FundReport struct {

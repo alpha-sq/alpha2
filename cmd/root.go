@@ -30,29 +30,25 @@ var rootCmd = &cobra.Command{
 	Short: "Web scraping tool for mutual fund data",
 	Long:  `Alpha2 is a web scraping tool for mutual fund data. It scrapes data from the AMFI website and stores it in an Database file.`,
 	PreRunE: func(cmd *cobra.Command, args []string) error {
-		if err := cmd.MarkFlagRequired("date"); err != nil {
-			return err
-		}
+		// if err := cmd.MarkFlagRequired("date"); err != nil {
+		// 	return err
+		// }
 		if err := cmd.MarkFlagFilename("log-file"); err != nil {
 			return err
 		}
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		forDate, _ := time.Parse("2006-01-02", targetDate)
-		craw := pmf.NewPMFCrawler()
-		db := crawler.Conn()
-		craw.CrawlAllFund(&forDate, func(funds []*crawler.Fund) {
-			for _, fund := range funds {
-				err := db.Model(&crawler.Fund{}).Clauses(clause.OnConflict{
-					DoNothing: true,
-				}).Create(fund)
-				if err.Error != nil {
-					jsonfund, _ := json.Marshal(fund)
-					log.Error().Err(err.Error).RawJSON("fund", jsonfund).Msg("Error while saving funds")
-				}
+		if fromDate != "" && toDate != "" {
+			fromDate_, _ := time.Parse("2006-01-02", fromDate)
+			toDate_, _ := time.Parse("2006-01-02", toDate)
+			for forDate := fromDate_; forDate.After(toDate_); forDate = forDate.AddDate(0, -1, 0) {
+				runClawl(&forDate)
 			}
-		})
+		} else {
+			forDate, _ := time.Parse("2006-01-02", targetDate)
+			runClawl(&forDate)
+		}
 	},
 }
 
@@ -66,6 +62,8 @@ func Execute() {
 }
 
 var targetDate string
+var fromDate string
+var toDate string
 var cfgFile string
 
 func init() {
@@ -77,6 +75,8 @@ func init() {
 
 	rootCmd.PersistentFlags().StringVar(&cfgFile, "config", "", "config file (default is $HOME/.alpha2.yaml)")
 	rootCmd.PersistentFlags().StringVarP(&targetDate, "date", "d", "", "Date for which the data is to be scraped, in the format YYYY-MM-DD")
+	rootCmd.PersistentFlags().StringVar(&fromDate, "from", "", "In the format YYYY-MM-DD")
+	rootCmd.PersistentFlags().StringVar(&toDate, "to", "", "In the format YYYY-MM-DD")
 	viper.BindPFlag("date", rootCmd.PersistentFlags().Lookup("date"))
 
 	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Set log level (debug, info, warn, error)")
@@ -146,4 +146,20 @@ func initConfig() {
 	if err := viper.ReadInConfig(); err == nil {
 		fmt.Println("Using config file:", viper.ConfigFileUsed())
 	}
+}
+
+func runClawl(forDate *time.Time) {
+	craw := pmf.NewPMFCrawler()
+	db := crawler.Conn()
+	craw.CrawlAllFund(forDate, func(funds []*crawler.Fund) {
+		for _, fund := range funds {
+			err := db.Model(&crawler.Fund{}).Clauses(clause.OnConflict{
+				DoNothing: true,
+			}).Create(fund)
+			if err.Error != nil {
+				jsonfund, _ := json.Marshal(fund)
+				log.Error().Err(err.Error).RawJSON("fund", jsonfund).Msg("Error while saving funds")
+			}
+		}
+	})
 }

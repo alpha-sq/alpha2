@@ -588,6 +588,7 @@ func reportToFundConverter(reports []*Report) []*crawler.Fund {
 			}
 
 			fund := &crawler.Fund{
+				ID:           service.ID,
 				Name:         service.FundName,
 				Type:         service.Strategy,
 				FundManagers: []*crawler.FundManager{report.GeneralInfo},
