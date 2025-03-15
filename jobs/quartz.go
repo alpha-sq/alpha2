@@ -1,13 +1,28 @@
 package jobs
 
 import (
+	"alpha2/crawler"
 	"encoding/json"
 	"errors"
 	"sync"
+	"time"
 
 	"github.com/reugn/go-quartz/quartz"
 	"gorm.io/gorm"
 )
+
+var Scheduler quartz.Scheduler
+
+func Init() {
+	jobQueue := NewGormJobQueue(crawler.Conn())
+	Scheduler, _ = quartz.NewStdScheduler(
+		quartz.WithQueue(jobQueue, &sync.Mutex{}),
+		quartz.WithLogger(&JobZeroLogger{}),
+		quartz.WithOutdatedThreshold(time.Hour*24*7),
+		quartz.WithRetryInterval(time.Minute*5),
+		quartz.WithWorkerLimit(10),
+	)
+}
 
 // GormJobQueue implements the JobQueue interface using Gorm and PostgreSQL.
 type GormJobQueue struct {

@@ -149,9 +149,10 @@ func initConfig() {
 
 	viper.AutomaticEnv()
 
-	if err := viper.ReadInConfig(); err == nil {
-		fmt.Println("Using config file:", viper.ConfigFileUsed())
+	if err := viper.ReadInConfig(); err != nil {
+		log.Fatal().Err(err).Msg("Error reading config file")
 	}
+	fmt.Println("Using config file:", viper.ConfigFileUsed())
 }
 
 func runClawl(forDate *time.Time) {

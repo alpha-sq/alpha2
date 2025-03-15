@@ -587,6 +587,11 @@ func reportToFundConverter(reports []*Report) []*crawler.Fund {
 				fundReport.Yr5Returns = &temp
 			}
 
+			if _, ok := service.ReturnsData["since inception"]; ok {
+				temp := service.ReturnsData["since inception"]
+				fundReport.OverAllReturns = &temp
+			}
+
 			fund := &crawler.Fund{
 				ID:           service.ID,
 				Name:         service.FundName,

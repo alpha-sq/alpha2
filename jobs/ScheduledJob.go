@@ -40,14 +40,22 @@ func (sj *ScheduledJob) NextRunTime() int64 {
 // Trigger implements quartz.ScheduledJob.
 func (sj *ScheduledJob) Trigger() quartz.Trigger {
 	triggerOpts := strings.Split(sj.TriggerDescription, quartz.Sep)
-	interval, _ := time.ParseDuration(triggerOpts[1])
+	interval, err := time.ParseDuration(triggerOpts[1])
+	if err != nil {
+		return quartz.NewRunOnceTrigger(time.Second * 5)
+	}
 	if strings.Contains(triggerOpts[0], "SimpleTrigger") {
 		return quartz.NewSimpleTrigger(interval)
 	} else if strings.Contains(triggerOpts[0], "CronTrigger") {
 		t, _ := quartz.NewCronTrigger(triggerOpts[1])
 		return t
+	} else {
+
+		return &quartz.RunOnceTrigger{
+			Delay:   interval,
+			Expired: triggerOpts[2] == "expired",
+		}
 	}
-	return quartz.NewRunOnceTrigger(interval)
 }
 
 func (sj *ScheduledJob) JobDetail() *quartz.JobDetail {
@@ -60,17 +68,17 @@ func (sj *ScheduledJob) JobDetail() *quartz.JobDetail {
 	return job
 }
 
-var JobRegistry *xsync.MapOf[string, Job]
+var JobRegistry *xsync.MapOf[string, func() Job]
 
 func init() {
-	JobRegistry = xsync.NewMapOf[string, Job]()
+	JobRegistry = xsync.NewMapOf[string, func() Job]()
 }
 
-func RegisterJob(group string, job Job) {
-	JobRegistry.Store(group, job)
+func RegisterJob(group string, supplier func() Job) {
+	JobRegistry.Store(group, supplier)
 }
 
 func GetJob(group string) Job {
-	job, _ := JobRegistry.Load(group)
-	return job
+	supplier, _ := JobRegistry.Load(group)
+	return supplier()
 }
