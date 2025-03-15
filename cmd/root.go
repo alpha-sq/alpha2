@@ -21,9 +21,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-var logLevel string
-var logFile string
-
 // rootCmd represents the base command when called without any subcommands
 var rootCmd = &cobra.Command{
 	Use:   "alpha2",
@@ -79,8 +76,14 @@ func init() {
 	rootCmd.PersistentFlags().StringVar(&toDate, "to", "", "In the format YYYY-MM-DD")
 	viper.BindPFlag("date", rootCmd.PersistentFlags().Lookup("date"))
 
-	rootCmd.PersistentFlags().StringVar(&logLevel, "log-level", "info", "Set log level (debug, info, warn, error)")
-	rootCmd.PersistentFlags().StringVar(&logFile, "log-file", "", "Set log file (leave empty for stdout)")
+	rootCmd.PersistentFlags().String("log-level", "info", "Set log level (debug, info, warn, error)")
+	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
+
+	rootCmd.PersistentFlags().String("log-out", "stdout", "Set log file (leave empty for stdout)")
+	viper.BindPFlag("log.out", rootCmd.PersistentFlags().Lookup("log-file"))
+
+	rootCmd.PersistentFlags().String("log-file", "app.log", "Set log file (leave empty for stdout)")
+	viper.BindPFlag("log.file", rootCmd.PersistentFlags().Lookup("log-file"))
 }
 
 func setuplogger() {
@@ -88,11 +91,14 @@ func setuplogger() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
 
 	var logWriter io.Writer
-	if logFile == "observe" {
-		logWriter = OpenObserveWriter{}
-	} else if logFile == "" {
+	logOut := viper.GetString("log.out")
+	switch logOut {
+	case "stdout":
 		logWriter = zerolog.ConsoleWriter{Out: os.Stdout, NoColor: false, TimeFormat: time.RFC822}
-	} else {
+	case "observe":
+		logWriter = OpenObserveWriter{}
+	default:
+		logFile := viper.GetString("log.file")
 		file, err := os.OpenFile(logFile, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0666)
 		if err != nil {
 			log.Fatal().Err(err).Str("log-file", logFile).Msg("Error opening log file")
@@ -100,7 +106,7 @@ func setuplogger() {
 		logWriter = zerolog.ConsoleWriter{Out: file, NoColor: true, TimeFormat: time.RFC1123}
 	}
 
-	level, err := zerolog.ParseLevel(strings.ToLower(logLevel))
+	level, err := zerolog.ParseLevel(strings.ToLower(viper.GetString("log.level")))
 	if err != nil {
 		level = zerolog.ErrorLevel
 	}

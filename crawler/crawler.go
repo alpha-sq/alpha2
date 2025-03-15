@@ -28,22 +28,6 @@ func Conn() *gorm.DB {
 		panic(err)
 	}
 
-	if err = db.AutoMigrate(&FundManager{}); err != nil {
-		log.Panic().Err(err).Msg("Error migrating FundManager")
-	}
-	if err = db.AutoMigrate(&Fund{}); err != nil {
-		log.Panic().Err(err).Msg("Error migrating FundManager")
-	}
-	if err = db.AutoMigrate(&FundReport{}); err != nil {
-		log.Panic().Err(err).Msg("Error migrating FundManager")
-	}
-	if err = db.AutoMigrate(&CrawlerEvent{}); err != nil {
-		log.Panic().Err(err).Msg("Error migrating FundManager")
-	}
-	if err = db.SetupJoinTable(&FundManager{}, "Funds", &FundXFundManagers{}); err != nil {
-		log.Panic().Err(err).Msg("Error migrating FundManager")
-	}
-
 	return db
 }
 
