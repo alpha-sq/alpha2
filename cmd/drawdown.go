@@ -13,6 +13,8 @@ import (
 	"gorm.io/gorm"
 )
 
+var noOfYears int
+
 // drawdownCmd represents the drawdown command
 var drawdownCmd = &cobra.Command{
 	Use:   "drawdown",
@@ -30,11 +32,17 @@ var drawdownCmd = &cobra.Command{
 				FundID: fund.ID,
 			}).
 				Where("month1_returns IS NOT NULL").
-				Order("report_date ASC").
+				Order("report_date desc").
+				Limit(noOfYears * 12).
 				Find(&reports).Error
 			if err != nil {
 				log.Error().Err(err).Msg("Failed to fetch report data")
 				return err
+			}
+
+			if len(reports) < noOfYears*12 {
+				log.Warn().Msg("Insufficient data for drawdown calculation")
+				return nil
 			}
 
 			// Calculate Cumulative Return
@@ -59,7 +67,12 @@ var drawdownCmd = &cobra.Command{
 
 			// Max Drawdown Calculation
 			maxDrawdown := computeMaxDrawdown(results)
-			fund.MaxDrawdown = &maxDrawdown
+			if noOfYears == 3 {
+				fund.MaxDrawdown3Yrs = &maxDrawdown
+			} else {
+				fund.MaxDrawdown5Yr = &maxDrawdown
+			}
+
 			if err := db.Save(&fund).Error; err != nil {
 				log.Error().Err(err).Msg("Failed to save max drawdown")
 				return err
@@ -104,4 +117,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// drawdownCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	drawdownCmd.Flags().IntVar(&noOfYears, "years", 3, "Number of months to consider for drawdown calculation")
 }

@@ -553,6 +553,7 @@ func reportToFundConverter(reports []*Report) []*crawler.Fund {
 			reportDate, _ := time.Parse("2006-01-02", fmt.Sprintf("%04d-%02d-01", report.Year, report.Month))
 			fundReport := &crawler.FundReport{
 				ReportDate: &reportDate,
+				OtherData:  make(map[string]string),
 			}
 			if _, ok := service.ReturnsData["1 month"]; ok {
 				temp := service.ReturnsData["1 month"]

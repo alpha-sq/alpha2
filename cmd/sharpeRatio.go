@@ -25,11 +25,17 @@ var sharpeRatioCmd = &cobra.Command{
 
 			var reports []crawler.FundReport
 			err := db.Where("fund_id = ? AND month1_returns IS NOT NULL", fund.ID).
-				Order("report_date ASC").
+				Order("report_date desc").
+				Limit(noOfYears * 12).
 				Find(&reports).Error
 			if err != nil {
 				log.Error().Err(err).Uint64("fund_id", fund.ID).Msg("Failed to fetch report data")
 				return err
+			}
+
+			if len(reports) < noOfYears*12 {
+				log.Warn().Uint64("fund_id", fund.ID).Msg("Insufficient data for sharpe ratio calculation")
+				return nil
 			}
 
 			// Risk-free rate (e.g., 3% annualized)
@@ -65,7 +71,11 @@ var sharpeRatioCmd = &cobra.Command{
 			if standardDeviation == 0 {
 				sharpeRatio = math.NaN()
 			}
-			fund.SharpeRatio = &sharpeRatio
+			if noOfYears == 3 {
+				fund.SharpeRatio3Yrs = &sharpeRatio
+			} else {
+				fund.SharpeRatio5Yrs = &sharpeRatio
+			}
 			if err = db.Save(&fund).Error; err != nil {
 				log.Error().Err(err).Uint64("fund_id", fund.ID).Msg("Failed to fetch report data")
 				return err
@@ -87,4 +97,5 @@ func init() {
 	// Cobra supports local flags which will only run when this command
 	// is called directly, e.g.:
 	// sharpeRatioCmd.Flags().BoolP("toggle", "t", false, "Help message for toggle")
+	sharpeRatioCmd.Flags().IntVar(&noOfYears, "years", 3, "Number of months to consider for sharpe ratio calculation")
 }
