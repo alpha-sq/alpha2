@@ -18,6 +18,7 @@ func init() {
 func RunServer() {
 
 	db := crawler.Conn()
+	jobs.Init()
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
