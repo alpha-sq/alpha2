@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"alpha2/crawler"
+	"math"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -91,6 +92,8 @@ to quickly create a Cobra application.`,
 				}
 				twoYearReturn := calculateReturnsWithMonthData(returns)
 				fund.Yr2Returns = &twoYearReturn
+				yr2Cagr := returnsToCagr(twoYearReturn, 2)
+				fund.Yr2Cagr = &yr2Cagr
 				// Print the 2-year return
 				log.Info().Str("fund", fund.Name).Float64("2-year-return", twoYearReturn).Msg("")
 			}
@@ -103,6 +106,8 @@ to quickly create a Cobra application.`,
 				}
 				threeYearReturn := calculateReturnsWithMonthData(returns)
 				fund.Yr3Returns = &threeYearReturn
+				Yr3Cagr := returnsToCagr(threeYearReturn, 3)
+				fund.Yr3Cagr = &Yr3Cagr
 
 				// Print the 3-year return
 				log.Info().Str("fund", fund.Name).Float64("3-year-return", threeYearReturn).Msg("")
@@ -116,6 +121,8 @@ to quickly create a Cobra application.`,
 				}
 				fourYearReturn := calculateReturnsWithMonthData(returns)
 				fund.Yr4Returns = &fourYearReturn
+				Yr4Cagr := returnsToCagr(fourYearReturn, 4)
+				fund.Yr4Cagr = &Yr4Cagr
 				// Print the 4-year return
 				log.Info().Str("fund", fund.Name).Float64("4-year-return", fourYearReturn).Msg("")
 			}
@@ -127,6 +134,8 @@ to quickly create a Cobra application.`,
 				}
 				fiveYearReturn := calculateReturnsWithMonthData(returns)
 				fund.Yr5Returns = &fiveYearReturn
+				Yr5Cagr := returnsToCagr(fiveYearReturn, 5)
+				fund.Yr5Cagr = &Yr5Cagr
 				// Print the 5-year return
 				log.Info().Str("fund", fund.Name).Float64("5-year-return", fiveYearReturn).Msg("")
 			}
@@ -147,6 +156,10 @@ func calculateReturnsWithMonthData(returns []float64) float64 {
 		totalReturn *= (1 + r/100) // Convert percentage to decimal
 	}
 	return (totalReturn - 1) * 100 // Return as percentage
+}
+
+func returnsToCagr(r float64, yr int) float64 {
+	return (math.Pow(r/100+1, float64(1/yr)) - 1) * 100
 }
 
 func init() {

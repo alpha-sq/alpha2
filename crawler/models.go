@@ -35,14 +35,19 @@ type Fund struct {
 
 	Type string `json:"type"`
 
-	Month1Returns  *float64 `json:"1_month_return"`
-	Month3Returns  *float64 `json:"3_month_return"`
-	Month6Returns  *float64 `json:"6_month_return"`
-	Yr1Returns     *float64 `json:"1_year_return"`
-	Yr2Returns     *float64 `json:"2_year_return"`
-	Yr3Returns     *float64 `json:"3_year_return"`
-	Yr4Returns     *float64 `json:"4_year_return"`
-	Yr5Returns     *float64 `json:"5_year_return"`
+	Month1Returns *float64 `json:"1_month_return"`
+	Month3Returns *float64 `json:"3_month_return"`
+	Month6Returns *float64 `json:"6_month_return"`
+	Yr1Returns    *float64 `json:"1_year_return"`
+	Yr2Returns    *float64 `json:"2_year_return"`
+	Yr3Returns    *float64 `json:"3_year_return"`
+	Yr4Returns    *float64 `json:"4_year_return"`
+	Yr5Returns    *float64 `json:"5_year_return"`
+
+	Yr2Cagr        *float64 `json:"2_year_cagr"`
+	Yr3Cagr        *float64 `json:"3_year_cagr"`
+	Yr4Cagr        *float64 `json:"4_year_cagr"`
+	Yr5Cagr        *float64 `json:"5_year_cagr"`
 	OverAllReturns *float64 `json:"over_all_return"`
 
 	MaxDrawdown3Yrs *float64 `json:"max_drawdown_3yr"`
