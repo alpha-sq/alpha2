@@ -5,6 +5,7 @@ package cmd
 
 import (
 	"alpha2/crawler"
+	"alpha2/crawler/mf"
 	"alpha2/jobs"
 
 	"github.com/rs/zerolog/log"
@@ -33,6 +34,12 @@ var autoMigrateCmd = &cobra.Command{
 		}
 		if err = db.SetupJoinTable(&crawler.FundManager{}, "Funds", &crawler.FundXFundManagers{}); err != nil {
 			log.Panic().Err(err).Msg("Error migrating FundXFundManagers")
+		}
+		if err = db.AutoMigrate(&mf.MutualFundData{}); err != nil {
+			log.Panic().Err(err).Msg("Error migrating MutualFundData")
+		}
+		if err = db.AutoMigrate(&mf.MutualFundNav{}); err != nil {
+			log.Panic().Err(err).Msg("Error migrating MutualFundNav")
 		}
 
 		if err = db.AutoMigrate(&jobs.ScheduledJob{}); err != nil {
