@@ -66,7 +66,7 @@ func (p *PMFCrawler) ReTryFailed(cb crawler.SaveFund) error {
 	db := crawler.Conn()
 	var events []crawler.CrawlerEvent
 	p.registerCrawler(cb)
-	db.Model(&crawler.CrawlerEvent{}).FindInBatches(&events, 100, func(tx *gorm.DB, batch int) error {
+	db.Model(&crawler.CrawlerEvent{}).Where("Data->'UID' is not null").FindInBatches(&events, 100, func(tx *gorm.DB, batch int) error {
 		bulkQueue, _ := queue.New(
 			30,
 			nil,
