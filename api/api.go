@@ -3,12 +3,12 @@ package api
 import (
 	"alpha2/crawler"
 	"alpha2/jobs"
-	"context"
 	"log"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/go-chi/cors"
 )
 
 func init() {
@@ -20,9 +20,9 @@ func RunServer() {
 	db := crawler.Conn()
 	jobs.Init()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	jobs.Scheduler.Start(ctx)
+	// ctx, cancel := context.WithCancel(context.Background())
+	// defer cancel()
+	// jobs.Scheduler.Start(ctx)
 
 	// Create HTTP handlers
 	handlers := NewHTTPHandlers(jobs.Scheduler, db)
@@ -31,14 +31,24 @@ func RunServer() {
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
+	r.Use(cors.Handler(cors.Options{
+		AllowedOrigins:   []string{"http://localhost:3000"}, // Allow your Next.js frontend
+		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
+		AllowCredentials: true,
+		MaxAge:           300, // Maximum value not ignored by browsers
+	}))
 
 	// Register routes
 	r.Group(func(r chi.Router) {
-		r.Use(middleware.AllowContentType("application/json"))
-
 		r.Get("/jobs/upcoming", handlers.GetUpcomingJobs)
 		r.Get("/jobs/completed", handlers.GetCompletedJobs)
 		r.Post("/jobs", handlers.AddJob)
+
+		r.Get("/funds", getAllFunds)
+		r.Get("/fund/{fundID}/trailing-returns", getTrailingReturns)
+		r.Get("/fund/{fundID}/rolling-returns", getRollingReturns)
+		r.Get("/fund/{fundID}/discrete-returns", getDiscreteReturns)
 	})
 
 	// Start the HTTP server
