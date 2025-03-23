@@ -48,3 +48,39 @@ func TestReturnsToCagr(t *testing.T) {
 		})
 	}
 }
+
+func Test_calculateReturnsWithMonthData(t *testing.T) {
+	type args struct {
+		returns []float64
+	}
+	tests := []struct {
+		name string
+		args args
+		want float64
+	}{
+		{
+			name: "Test case for 1 yr",
+			args: args{returns: []float64{
+				0.48,
+				0.98,
+				0.65,
+				-0.98,
+				-0.12,
+				-0.49,
+				-2.69,
+				8.17,
+				5.7,
+				-3.6,
+				8.8,
+				-0.86}},
+			want: 16.27,
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if got := calculateReturnsWithMonthData(tt.args.returns); math.Round(got) != math.Round(tt.want) {
+				t.Errorf("calculateReturnsWithMonthData() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
