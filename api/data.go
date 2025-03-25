@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
 
@@ -95,10 +96,53 @@ func getDiscreteReturns(w http.ResponseWriter, r *http.Request) {
 	fundID := chi.URLParam(r, "fundID")
 	var reports []crawler.FundReport
 
-	// Fetch fund reports
-	if err := db.Where("fund_id = ?", fundID).Order("report_date DESC").Find(&reports).Error; err != nil {
-		http.Error(w, "Error fetching reports", http.StatusInternalServerError)
-		return
+	period := r.URL.Query().Get("period")
+	if period == "Y" {
+		month := time.Now().AddDate(0, -1, 0).Month()
+		err := db.Raw(`
+        	SELECT DISTINCT ON (EXTRACT(YEAR FROM report_date)) *
+        	FROM fund_reports
+        	WHERE EXTRACT(MONTH FROM report_date) = ? AND fund_id = ?
+        	ORDER BY EXTRACT(YEAR FROM report_date), report_date DESC;
+    	`, month, fundID).Scan(&reports).Error
+		if err != nil {
+			http.Error(w, "Error fetching reports", http.StatusInternalServerError)
+			return
+		}
+	} else if period == "Q" {
+
+		limit := 50
+		now := time.Now()
+		currentYear, currentMonth, _ := now.Date()
+
+		// Calculate the end date (start of current month to exclude current month)
+		endDate := time.Date(currentYear, currentMonth, 1, 0, 0, 0, 0, time.UTC)
+		quarterCount := 0
+		for qStart := endDate.AddDate(0, -3, 0); quarterCount < limit; qStart = qStart.AddDate(0, -3, 0) {
+			qEnd := qStart.AddDate(0, 3, 0)
+
+			var report crawler.FundReport
+			err := db.
+				Where("fund_id = ?", fundID).
+				Where("report_date >= ? AND report_date < ?", qStart, qEnd).
+				Order("report_date DESC").
+				First(&report).Error
+
+			if err != nil && err != gorm.ErrRecordNotFound {
+				http.Error(w, "Error fetching reports", http.StatusInternalServerError)
+				return
+			}
+
+			if err == nil {
+				reports = append(reports, report)
+				quarterCount++
+			}
+
+			// Stop if we've gone back too far (optional)
+			if qStart.Year() < now.Year()-5 { // 5 year limit
+				break
+			}
+		}
 	}
 
 	// Prepare discrete return response
