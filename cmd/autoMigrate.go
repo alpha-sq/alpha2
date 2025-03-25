@@ -42,6 +42,10 @@ var autoMigrateCmd = &cobra.Command{
 			log.Panic().Err(err).Msg("Error migrating MutualFundNav")
 		}
 
+		if err = db.Exec("CREATE EXTENSION IF NOT EXISTS pg_trgm;").Error; err != nil {
+			log.Panic().Err(err).Msg("Error CREATE EXTENSION pg_trgm")
+		}
+
 		if err = db.AutoMigrate(&jobs.ScheduledJob{}); err != nil {
 			log.Panic().Err(err).Msg("Error migrating CrawlerEvent")
 		}
