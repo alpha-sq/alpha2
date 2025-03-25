@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"gorm.io/gorm/clause"
 )
 
 // Handler to get trailing returns
@@ -123,19 +124,53 @@ func getDiscreteReturns(w http.ResponseWriter, r *http.Request) {
 
 func getAllFunds(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
-	var funds []struct {
-		ID   uint64 `json:"id"`
-		Name string `json:"name"`
+	var apiFunds []struct {
+		ID      uint64 `json:"id"`
+		Name    string `json:"name"`
+		Manager string `json:"manager"`
 	}
 
+	fundname := r.URL.Query().Get("name")
+	perPage := r.URL.Query().Get("per_page")
+
+	tx := db.Model(&crawler.Fund{}).Select("id, name").Preload("FundManagers")
+	if fundname != "" {
+		tx = tx.Order(clause.OrderBy{
+			Expression: clause.Expr{SQL: "similarity(name, ?) DESC", Vars: []any{fundname}},
+		})
+	}
+
+	if perPage == "" {
+		perPage = "10"
+	}
+	perPageInt, err := strconv.Atoi(perPage)
+	if err != nil {
+		http.Error(w, "Invalid per_page value", http.StatusBadRequest)
+		return
+	}
+	tx = tx.Limit(perPageInt)
 	// Select only ID and Name from Fund table
-	if err := db.Model(&crawler.Fund{}).Select("id, name").Find(&funds).Error; err != nil {
+	funds := []crawler.Fund{}
+	if err := tx.Find(&funds).Error; err != nil {
 		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
 		return
 	}
 
+	for _, fund := range funds {
+		manager := fund.FundManagers[0].OtherData["RegistrationName"]
+		apiFunds = append(apiFunds, struct {
+			ID      uint64 `json:"id"`
+			Name    string `json:"name"`
+			Manager string `json:"manager"`
+		}{
+			ID:      fund.ID,
+			Name:    fund.Name,
+			Manager: manager,
+		})
+	}
+
 	// Respond with JSON
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(funds)
+	json.NewEncoder(w).Encode(apiFunds)
 
 }
