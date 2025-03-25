@@ -185,7 +185,7 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if perPage == "" {
-		perPage = "10"
+		perPage = "50"
 	}
 	perPageInt, err := strconv.Atoi(perPage)
 	if err != nil {
