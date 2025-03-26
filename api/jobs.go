@@ -123,7 +123,13 @@ func (h *HTTPHandlers) AddJob(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Create a new job
-	job := quartz.NewJobDetail(jobs.GetJob(req.Group), quartz.NewJobKeyWithGroup(req.Name, req.Group))
+	job := quartz.NewJobDetailWithOptions(jobs.GetJob(req.Group), quartz.NewJobKeyWithGroup(req.Name, req.Group),
+		&quartz.JobDetailOptions{
+			MaxRetries:    10,
+			RetryInterval: time.Minute * 5,
+			Replace:       false,
+			Suspended:     false,
+		})
 	trigger := quartz.NewRunOnceTrigger(time.Second * 1)
 
 	// Schedule the job

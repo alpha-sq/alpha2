@@ -29,7 +29,12 @@ to quickly create a Cobra application.`,
 		defer cancel()
 		jobs.Scheduler.Start(ctx)
 
-		jd := quartz.NewJobDetail(&pmf.PMFInit{}, quartz.NewJobKeyWithGroup("PMFInit", "PMFInit"))
+		jd := quartz.NewJobDetailWithOptions(&pmf.PMFInit{}, quartz.NewJobKeyWithGroup("PMFInit", "PMFInit"), &quartz.JobDetailOptions{
+			MaxRetries:    10,
+			RetryInterval: time.Minute * 5,
+			Replace:       false,
+			Suspended:     false,
+		})
 		t := quartz.NewRunOnceTrigger(time.Second * 5)
 
 		jobs.Scheduler.ScheduleJob(jd, t)

@@ -23,6 +23,8 @@ type PMFCrawler struct {
 	fundManagerVsReport *xsync.MapOf[string, []*Report]
 	collector           *colly.Collector
 	queue               *queue.Queue
+
+	err error
 }
 
 func NewPMFCrawler() *PMFCrawler {
@@ -340,6 +342,7 @@ func (p *PMFCrawler) registerCrawlerError() {
 			Str("UID", r.Ctx.Get("UID")).
 			Err(err).Msg("Error during colly request")
 
+		p.err = err
 		db := crawler.Conn()
 		err = db.Create(&crawler.CrawlerEvent{
 			Data: map[string]string{

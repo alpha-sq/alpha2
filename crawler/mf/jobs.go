@@ -45,8 +45,14 @@ func (j *MFSync) Execute(ctx context.Context) error {
 
 		nxtDate := time.Now().AddDate(0, 0, -time.Now().Day())
 		key := fmt.Sprintf("%d-%s", job.FundID, nxtDate.Format(time.DateOnly))
-		jobDetail := quartz.NewJobDetail(
+		jobDetail := quartz.NewJobDetailWithOptions(
 			job, quartz.NewJobKeyWithGroup(key, "MFNavSync"),
+			&quartz.JobDetailOptions{
+				MaxRetries:    10,
+				RetryInterval: time.Minute * 5,
+				Replace:       false,
+				Suspended:     false,
+			},
 		)
 
 		err = jobs.Scheduler.ScheduleJob(jobDetail, quartz.NewRunOnceTrigger(time.Minute*time.Duration(idx)))

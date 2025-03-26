@@ -3,6 +3,7 @@ package api
 import (
 	"alpha2/crawler"
 	"alpha2/jobs"
+	"context"
 	"log"
 	"net/http"
 
@@ -20,9 +21,9 @@ func RunServer() {
 	db := crawler.Conn()
 	jobs.Init()
 
-	// ctx, cancel := context.WithCancel(context.Background())
-	// defer cancel()
-	// jobs.Scheduler.Start(ctx)
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+	jobs.Scheduler.Start(ctx)
 
 	// Create HTTP handlers
 	handlers := NewHTTPHandlers(jobs.Scheduler, db)

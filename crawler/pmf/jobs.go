@@ -32,7 +32,11 @@ type CrawlPMFFunds struct {
 func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 	forDate, _ := time.Parse(time.DateOnly, j.ForDate)
 
-	NewPMFCrawler().CrawlFundWithManager(j.UID, &forDate, func(funds []*crawler.Fund) {
+	crwl := NewPMFCrawler()
+	crwl.CrawlFundWithManager(j.UID, &forDate, func(funds []*crawler.Fund) {
+		if crwl.err != nil {
+			return
+		}
 		db := crawler.Conn()
 		db.Transaction(func(tx *gorm.DB) error {
 			for _, fund := range funds {
@@ -63,8 +67,14 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 			}
 
 			key := fmt.Sprintf("%s-%s", j.UID, nxtDate.Format(time.DateOnly))
-			jobDetail := quartz.NewJobDetail(
+			jobDetail := quartz.NewJobDetailWithOptions(
 				job, quartz.NewJobKeyWithGroup(key, "CrawlPMFFunds"),
+				&quartz.JobDetailOptions{
+					MaxRetries:    10,
+					RetryInterval: time.Minute * 5,
+					Replace:       false,
+					Suspended:     false,
+				},
 			)
 
 			err = jobs.Scheduler.ScheduleJob(jobDetail, quartz.NewRunOnceTrigger(triggerDur))
@@ -72,6 +82,9 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 			return err
 		})
 	})
+	if crwl.err != nil {
+		return crwl.err
+	}
 
 	return err
 }
@@ -109,8 +122,14 @@ func (j *PMFInit) Execute(ctx context.Context) (err error) {
 		}
 
 		key := fmt.Sprintf("%s-%s", job.UID, job.ForDate)
-		jobDetail := quartz.NewJobDetail(
+		jobDetail := quartz.NewJobDetailWithOptions(
 			job, quartz.NewJobKeyWithGroup(key, "CrawlPMFFunds"),
+			&quartz.JobDetailOptions{
+				MaxRetries:    10,
+				RetryInterval: time.Minute * 5,
+				Replace:       false,
+				Suspended:     false,
+			},
 		)
 
 		err = jobs.Scheduler.ScheduleJob(jobDetail, quartz.NewRunOnceTrigger(time.Second*1))

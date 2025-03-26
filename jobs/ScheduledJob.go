@@ -61,9 +61,15 @@ func (sj *ScheduledJob) Trigger() quartz.Trigger {
 func (sj *ScheduledJob) JobDetail() *quartz.JobDetail {
 	j := GetJob(sj.JobGroup)
 	j.SetDescription(sj.JobDescription)
-	job := quartz.NewJobDetail(
+	job := quartz.NewJobDetailWithOptions(
 		j,
 		quartz.NewJobKeyWithGroup(sj.JobName, sj.JobGroup),
+		&quartz.JobDetailOptions{
+			MaxRetries:    10,
+			RetryInterval: time.Minute * 5,
+			Replace:       false,
+			Suspended:     false,
+		},
 	)
 	return job
 }
