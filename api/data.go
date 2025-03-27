@@ -46,13 +46,40 @@ func getTrailingReturns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	var reports []crawler.FundReport
+	var reports []*crawler.FundReport
 	if err := db.Where("fund_id = ? AND report_date BETWEEN ? AND ?", fundID, startTime, endTime).Find(&reports).Error; err != nil {
 		http.Error(w, "Error fetching reports", http.StatusInternalServerError)
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
+	convertData(reports)
 	json.NewEncoder(w).Encode(reports)
+}
+
+func convertData(reports []*crawler.FundReport) {
+	for idx, report := range reports {
+		var c float64
+		var b float64
+		if report.Month1Returns == nil {
+			b = 0
+		} else {
+			b = *report.Month1Returns
+		}
+		if idx == 0 {
+			c = 100
+			r := b + 100
+			report.Month1Returns = &r
+		} else {
+			prvReport := reports[idx-1]
+			if prvReport.Month1Returns == nil || report.Month1Returns == nil {
+				continue
+			}
+			c = *prvReport.Month1Returns
+			r := (c * b / 100) + c
+			report.Month1Returns = &r
+		}
+
+	}
 }
 
 // Handler to get rolling returns
