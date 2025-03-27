@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
@@ -208,7 +209,7 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 			Manager string `json:"manager"`
 		}{
 			ID:      fund.ID,
-			Name:    fund.Name,
+			Name:    strings.Trim(fund.Name, " "),
 			Manager: manager,
 		})
 	}
