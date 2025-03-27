@@ -236,7 +236,7 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 			Manager string `json:"manager"`
 		}{
 			ID:      fund.ID,
-			Name:    strings.Trim(fund.Name, " "),
+			Name:    ToTitleCase(fund.Name),
 			Manager: manager,
 		})
 	}
@@ -245,4 +245,12 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(apiFunds)
 
+}
+
+func ToTitleCase(s string) string {
+	words := strings.Fields(strings.Trim(s, " ")) // Split string into words
+	for i, word := range words {
+		words[i] = strings.ToUpper(string(word[0])) + strings.ToLower(word[1:])
+	}
+	return strings.Join(words, " ")
 }
