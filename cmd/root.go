@@ -80,7 +80,7 @@ func init() {
 	viper.BindPFlag("log.level", rootCmd.PersistentFlags().Lookup("log-level"))
 
 	rootCmd.PersistentFlags().String("log-out", "stdout", "Set log file (leave empty for stdout)")
-	viper.BindPFlag("log.out", rootCmd.PersistentFlags().Lookup("log-file"))
+	// viper.BindPFlag("log.out", rootCmd.PersistentFlags().Lookup("log-file"))
 
 	rootCmd.PersistentFlags().String("log-file", "app.log", "Set log file (leave empty for stdout)")
 	viper.BindPFlag("log.file", rootCmd.PersistentFlags().Lookup("log-file"))
