@@ -248,9 +248,6 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 }
 
 func ToTitleCase(s string) string {
-	words := strings.Fields(strings.Trim(s, " ")) // Split string into words
-	for i, word := range words {
-		words[i] = strings.ToUpper(string(word[0])) + strings.ToLower(word[1:])
-	}
-	return strings.Join(words, " ")
+	words := (strings.Trim(s, " ")) // Split string into words
+	return strings.ToUpper(string(words[0])) + words[1:]
 }
