@@ -6,6 +6,7 @@ package cmd
 import (
 	"alpha2/crawler"
 	"math"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -24,7 +25,8 @@ var sharpeRatioCmd = &cobra.Command{
 			fund := funds[0]
 
 			var reports []crawler.FundReport
-			err := db.Where("fund_id = ? AND month1_returns IS NOT NULL", fund.ID).
+			threeYearsAgo := time.Now().AddDate(-noOfYears, 0, 0)
+			err := db.Where("fund_id = ? AND month1_returns IS NOT NULL AND report_date >= ?", fund.ID, threeYearsAgo).
 				Order("report_date desc").
 				Limit(noOfYears * 12).
 				Find(&reports).Error
@@ -38,8 +40,6 @@ var sharpeRatioCmd = &cobra.Command{
 				return nil
 			}
 
-			// Risk-free rate (e.g., 3% annualized)
-			riskFreeRate := 1.62 // Monthly risk-free rate
 			// Calculate mean return
 			totalReturn := 0.0
 			returns := []float64{}
@@ -56,21 +56,17 @@ var sharpeRatioCmd = &cobra.Command{
 			for _, ret := range returns {
 				varianceSum += math.Pow(ret-meanReturn, 2)
 			}
-			standardDeviation := math.Sqrt(varianceSum / float64(len(returns)))
+			sharpeRatio := math.Sqrt(varianceSum / float64(len(returns)))
 
 			// Sharpe Ratio Calculation
-			sharpeRatio := (meanReturn - riskFreeRate) / standardDeviation
+			// sharpeRatio := (meanReturn - riskFreeRate) / standardDeviation
 
 			// Display Results
 			log.Info().Float64("mean_return", meanReturn).
-				Float64("standard_deviation", standardDeviation).
 				Float64("sharpe_ratio", sharpeRatio).
 				Uint64("fund_id", fund.ID).
 				Msg("Sharpe Ratio Calculation")
 
-			if standardDeviation == 0 {
-				sharpeRatio = math.NaN()
-			}
 			if noOfYears == 3 {
 				fund.SharpeRatio3Yrs = &sharpeRatio
 			} else {
