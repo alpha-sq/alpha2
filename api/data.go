@@ -417,10 +417,11 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func Round(d *float64) float64 {
-	if d == nil {
+func Round(num *float64) float64 {
+	if num == nil {
 		return 0
 	}
 
-	return math.Round(*d)
+	return math.Round(*num*100) / 100
+
 }
