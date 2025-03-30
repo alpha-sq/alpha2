@@ -3,6 +3,7 @@ package api
 import (
 	"alpha2/crawler"
 	"encoding/json"
+	"math"
 	"net/http"
 	"strconv"
 	"strings"
@@ -258,17 +259,17 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
 	var resp struct {
 		Data []struct {
-			ID   uint64   `json:"id"`
-			Name string   `json:"schemeName"`
-			AUM  *float64 `json:"aum"`
+			ID   uint64  `json:"id"`
+			Name string  `json:"schemeName"`
+			AUM  float64 `json:"aum"`
 
-			ThreeMonth *float64 `json:"threeMonth"`
-			SixMonth   *float64 `json:"sixMonth"`
-			OneYear    *float64 `json:"oneYear"`
-			TwoYear    *float64 `json:"twoYear"`
-			ThreeYear  *float64 `json:"threeYear"`
-			FiveYear   *float64 `json:"fiveYear"`
-			YTD        *float64 `json:"ytd"`
+			ThreeMonth float64 `json:"threeMonth"`
+			SixMonth   float64 `json:"sixMonth"`
+			OneYear    float64 `json:"oneYear"`
+			TwoYear    float64 `json:"twoYear"`
+			ThreeYear  float64 `json:"threeYear"`
+			FiveYear   float64 `json:"fiveYear"`
+			YTD        float64 `json:"ytd"`
 		} `json:"data"`
 
 		Total int64 `json:"total"`
@@ -386,27 +387,27 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 
 	for _, fund := range funds {
 		resp.Data = append(resp.Data, struct {
-			ID         uint64   "json:\"id\""
-			Name       string   "json:\"schemeName\""
-			AUM        *float64 "json:\"aum\""
-			ThreeMonth *float64 "json:\"threeMonth\""
-			SixMonth   *float64 "json:\"sixMonth\""
-			OneYear    *float64 "json:\"oneYear\""
-			TwoYear    *float64 "json:\"twoYear\""
-			ThreeYear  *float64 "json:\"threeYear\""
-			FiveYear   *float64 "json:\"fiveYear\""
-			YTD        *float64 "json:\"ytd\""
+			ID         uint64  "json:\"id\""
+			Name       string  "json:\"schemeName\""
+			AUM        float64 "json:\"aum\""
+			ThreeMonth float64 "json:\"threeMonth\""
+			SixMonth   float64 "json:\"sixMonth\""
+			OneYear    float64 "json:\"oneYear\""
+			TwoYear    float64 "json:\"twoYear\""
+			ThreeYear  float64 "json:\"threeYear\""
+			FiveYear   float64 "json:\"fiveYear\""
+			YTD        float64 "json:\"ytd\""
 		}{
 			ID:         fund.ID,
 			Name:       ToTitleCase(fund.Name),
-			AUM:        fund.AUM,
-			ThreeMonth: fund.Month3Returns,
-			SixMonth:   fund.Month6Returns,
-			OneYear:    fund.Yr1Returns,
-			TwoYear:    fund.Yr2Returns,
-			ThreeYear:  fund.Yr3Returns,
-			FiveYear:   fund.Yr5Returns,
-			YTD:        fund.OverAllReturns,
+			AUM:        Round(fund.AUM),
+			ThreeMonth: Round(fund.Month3Returns),
+			SixMonth:   Round(fund.Month6Returns),
+			OneYear:    Round(fund.Yr1Returns),
+			TwoYear:    Round(fund.Yr2Returns),
+			ThreeYear:  Round(fund.Yr3Returns),
+			FiveYear:   Round(fund.Yr5Returns),
+			YTD:        Round(fund.OverAllReturns),
 		})
 	}
 
@@ -414,4 +415,12 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(resp)
 
+}
+
+func Round(d *float64) float64 {
+	if d == nil {
+		return 0
+	}
+
+	return math.Round(*d)
 }
