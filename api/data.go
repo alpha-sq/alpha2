@@ -248,6 +248,170 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 }
 
 func ToTitleCase(s string) string {
+	s = strings.ReplaceAll(s, "\n", "")
+
 	words := (strings.Trim(s, " ")) // Split string into words
 	return strings.ToUpper(string(words[0])) + words[1:]
+}
+
+func getPMSData(w http.ResponseWriter, r *http.Request) {
+	db := crawler.Conn()
+	var resp struct {
+		Data []struct {
+			ID   uint64   `json:"id"`
+			Name string   `json:"schemeName"`
+			AUM  *float64 `json:"aum"`
+
+			ThreeMonth *float64 `json:"threeMonth"`
+			SixMonth   *float64 `json:"sixMonth"`
+			OneYear    *float64 `json:"oneYear"`
+			TwoYear    *float64 `json:"twoYear"`
+			ThreeYear  *float64 `json:"threeYear"`
+			FiveYear   *float64 `json:"fiveYear"`
+			YTD        *float64 `json:"ytd"`
+		} `json:"data"`
+
+		Total int64 `json:"total"`
+	}
+
+	perPage := r.URL.Query().Get("per_page")
+	page := r.URL.Query().Get("page")
+
+	orderby := r.URL.Query().Get("order_by")
+	if orderby == "" {
+		orderby = "name"
+	}
+	order := r.URL.Query().Get("order")
+	isDesc := false
+	if strings.ToLower(order) == "desc" {
+		isDesc = true
+	}
+
+	tx := db.Model(&crawler.Fund{}).Where("name != ''")
+
+	if perPage == "" {
+		perPage = "50"
+	}
+	if page == "" {
+		page = "0"
+	}
+	perPageInt, err := strconv.Atoi(perPage)
+	if err != nil {
+		http.Error(w, "Invalid per_page value", http.StatusBadRequest)
+		return
+	}
+	pageInt, err := strconv.Atoi(page)
+	if err != nil {
+		http.Error(w, "Invalid per_page value", http.StatusBadRequest)
+		return
+	}
+	tx = tx.Limit(perPageInt).Offset(pageInt)
+
+	switch orderby {
+	case "aum":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "aum"},
+				Desc:   isDesc,
+			}},
+		})
+	case "threeMonth":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "month3_returns"},
+				Desc:   isDesc,
+			}},
+		})
+	case "sixMonth":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "month6_returns"},
+				Desc:   isDesc,
+			}},
+		})
+	case "oneYear":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "yr1_returns"},
+				Desc:   isDesc,
+			}},
+		})
+	case "twoYear":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "yr2_returns"},
+				Desc:   isDesc,
+			}},
+		})
+	case "threeYear":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "yr3_returns"},
+				Desc:   isDesc,
+			}},
+		})
+	case "fiveYear":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "yr5_returns"},
+				Desc:   isDesc,
+			}},
+		})
+	case "ytd":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "over_all_returns"},
+				Desc:   isDesc,
+			}},
+		})
+	default:
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "name"},
+				Desc:   isDesc,
+			}},
+		})
+	}
+	// Select only ID and Name from Fund table
+	funds := []crawler.Fund{}
+	if err := tx.Find(&funds).Error; err != nil {
+		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
+		return
+	}
+
+	if err := db.Model(&crawler.Fund{}).Where("name != ''").Count(&resp.Total).Error; err != nil {
+		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
+		return
+	}
+
+	for _, fund := range funds {
+		resp.Data = append(resp.Data, struct {
+			ID         uint64   "json:\"id\""
+			Name       string   "json:\"schemeName\""
+			AUM        *float64 "json:\"aum\""
+			ThreeMonth *float64 "json:\"threeMonth\""
+			SixMonth   *float64 "json:\"sixMonth\""
+			OneYear    *float64 "json:\"oneYear\""
+			TwoYear    *float64 "json:\"twoYear\""
+			ThreeYear  *float64 "json:\"threeYear\""
+			FiveYear   *float64 "json:\"fiveYear\""
+			YTD        *float64 "json:\"ytd\""
+		}{
+			ID:         fund.ID,
+			Name:       ToTitleCase(fund.Name),
+			AUM:        fund.AUM,
+			ThreeMonth: fund.Month3Returns,
+			SixMonth:   fund.Month6Returns,
+			OneYear:    fund.Yr1Returns,
+			TwoYear:    fund.Yr2Returns,
+			ThreeYear:  fund.Yr3Returns,
+			FiveYear:   fund.Yr5Returns,
+			YTD:        fund.OverAllReturns,
+		})
+	}
+
+	// Respond with JSON
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(resp)
+
 }

@@ -27,8 +27,9 @@ type FundManager struct {
 }
 
 type Fund struct {
-	ID   uint64 `json:"id"`
-	Name string `json:"name"`
+	ID   uint64   `json:"id"`
+	Name string   `json:"name"`
+	AUM  *float64 `json:"aum"`
 
 	FundManagers []*FundManager `gorm:"many2many:fund_x_fund_managers" json:"fund_managers"`
 	FundReports  []*FundReport
