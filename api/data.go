@@ -252,6 +252,9 @@ func ToTitleCase(s string) string {
 	s = strings.ReplaceAll(s, "\n", "")
 
 	words := (strings.Trim(s, " ")) // Split string into words
+	if len(words) == 0 {
+		return ""
+	}
 	return strings.ToUpper(string(words[0])) + words[1:]
 }
 
@@ -263,13 +266,15 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 			Name string  `json:"schemeName"`
 			AUM  float64 `json:"aum"`
 
-			ThreeMonth float64 `json:"threeMonth"`
-			SixMonth   float64 `json:"sixMonth"`
-			OneYear    float64 `json:"oneYear"`
-			TwoYear    float64 `json:"twoYear"`
-			ThreeYear  float64 `json:"threeYear"`
-			FiveYear   float64 `json:"fiveYear"`
-			YTD        float64 `json:"ytd"`
+			ThreeMonth  float64 `json:"threeMonth"`
+			SixMonth    float64 `json:"sixMonth"`
+			OneYear     float64 `json:"oneYear"`
+			TwoYear     float64 `json:"twoYear"`
+			ThreeYear   float64 `json:"threeYear"`
+			FiveYear    float64 `json:"fiveYear"`
+			YTD         float64 `json:"ytd"`
+			SharpeRatio float64 `json:"sharpeRatio"`
+			MaxDrawdown float64 `json:"maxDrawdown"`
 		} `json:"data"`
 
 		Total int64 `json:"total"`
@@ -288,7 +293,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		isDesc = true
 	}
 
-	tx := db.Model(&crawler.Fund{}).Where("name != ''")
+	tx := db.Model(&crawler.FundReport{})
 
 	if perPage == "" {
 		perPage = "50"
@@ -307,6 +312,14 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	tx = tx.Limit(perPageInt).Offset(pageInt)
+	// Select only ID and Name from Fund table
+	now := time.Now()
+	firstDayLastMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, now.Location())
+	lastDayLastMonth := firstDayLastMonth.AddDate(0, 1, -1)
+
+	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
+		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
+		Where("funds.name != ''")
 
 	switch orderby {
 	case "aum":
@@ -323,6 +336,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 				Desc:   isDesc,
 			}},
 		})
+		tx = tx.Where("month3_returns IS NOT NULL")
 	case "sixMonth":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
@@ -330,6 +344,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 				Desc:   isDesc,
 			}},
 		})
+		tx = tx.Where("month6_returns IS NOT NULL")
 	case "oneYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
@@ -337,6 +352,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 				Desc:   isDesc,
 			}},
 		})
+		tx = tx.Where("yr1_returns IS NOT NULL")
 	case "twoYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
@@ -344,6 +360,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 				Desc:   isDesc,
 			}},
 		})
+		tx = tx.Where("yr2_returns IS NOT NULL")
 	case "threeYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
@@ -351,6 +368,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 				Desc:   isDesc,
 			}},
 		})
+		tx = tx.Where("yr3_returns IS NOT NULL")
 	case "fiveYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
@@ -358,6 +376,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 				Desc:   isDesc,
 			}},
 		})
+		tx = tx.Where("yr5_returns IS NOT NULL")
 	case "ytd":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
@@ -365,49 +384,92 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 				Desc:   isDesc,
 			}},
 		})
-	default:
+		tx = tx.Where("fund_reports.over_all_returns IS NOT NULL")
+	case "sharpeRatio":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "name"},
+				Column: clause.Column{Name: "funds.sharpe_ratio3_yrs"},
 				Desc:   isDesc,
 			}},
 		})
+		tx = tx.Where("funds.sharpe_ratio3_yrs IS NOT NULL")
+	case "maxDrawdown":
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "funds.max_drawdown3_yrs"},
+				Desc:   isDesc,
+			}},
+		})
+		tx = tx.Where("funds.max_drawdown3_yrs IS NOT NULL")
+	default:
+		tx = tx.Order(clause.OrderBy{
+			Columns: []clause.OrderByColumn{{
+				Column: clause.Column{Name: "funds.name"},
+				Desc:   isDesc,
+			}},
+		})
+
 	}
-	// Select only ID and Name from Fund table
+
+	reports := []crawler.FundReport{}
+	if err := tx.Find(&reports).Error; err != nil {
+		http.Error(w, "Error fetching reports", http.StatusInternalServerError)
+		return
+	}
+
 	funds := []crawler.Fund{}
-	if err := tx.Find(&funds).Error; err != nil {
+	fundIDs := make([]uint64, len(reports))
+	for i, report := range reports {
+		fundIDs[i] = report.FundID
+	}
+	if err := db.Model(&crawler.Fund{}).Where("id in ?", fundIDs).Find(&funds).Error; err != nil {
 		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
 		return
 	}
 
-	if err := db.Model(&crawler.Fund{}).Where("name != ''").Count(&resp.Total).Error; err != nil {
+	if err := db.Model(&crawler.FundReport{}).Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).Count(&resp.Total).Error; err != nil {
 		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
 		return
 	}
 
 	for _, fund := range funds {
+		var report *crawler.FundReport
+		for _, r := range reports {
+			if fund.ID == r.FundID {
+				report = &r
+				break
+			}
+		}
+		if report == nil {
+			continue
+		}
+
 		resp.Data = append(resp.Data, struct {
-			ID         uint64  "json:\"id\""
-			Name       string  "json:\"schemeName\""
-			AUM        float64 "json:\"aum\""
-			ThreeMonth float64 "json:\"threeMonth\""
-			SixMonth   float64 "json:\"sixMonth\""
-			OneYear    float64 "json:\"oneYear\""
-			TwoYear    float64 "json:\"twoYear\""
-			ThreeYear  float64 "json:\"threeYear\""
-			FiveYear   float64 "json:\"fiveYear\""
-			YTD        float64 "json:\"ytd\""
+			ID          uint64  "json:\"id\""
+			Name        string  "json:\"schemeName\""
+			AUM         float64 "json:\"aum\""
+			ThreeMonth  float64 "json:\"threeMonth\""
+			SixMonth    float64 "json:\"sixMonth\""
+			OneYear     float64 "json:\"oneYear\""
+			TwoYear     float64 "json:\"twoYear\""
+			ThreeYear   float64 "json:\"threeYear\""
+			FiveYear    float64 "json:\"fiveYear\""
+			YTD         float64 "json:\"ytd\""
+			SharpeRatio float64 "json:\"sharpeRatio\""
+			MaxDrawdown float64 "json:\"maxDrawdown\""
 		}{
-			ID:         fund.ID,
-			Name:       ToTitleCase(fund.Name),
-			AUM:        Round(fund.AUM),
-			ThreeMonth: Round(fund.Month3Returns),
-			SixMonth:   Round(fund.Month6Returns),
-			OneYear:    Round(fund.Yr1Returns),
-			TwoYear:    Round(fund.Yr2Returns),
-			ThreeYear:  Round(fund.Yr3Returns),
-			FiveYear:   Round(fund.Yr5Returns),
-			YTD:        Round(fund.OverAllReturns),
+			ID:          fund.ID,
+			Name:        ToTitleCase(fund.Name),
+			AUM:         Round(fund.AUM),
+			ThreeMonth:  Round(report.Month3Returns),
+			SixMonth:    Round(report.Month6Returns),
+			OneYear:     Round(report.Yr1Returns),
+			TwoYear:     Round(report.Yr2Returns),
+			ThreeYear:   Round(report.Yr3Returns),
+			FiveYear:    Round(report.Yr5Returns),
+			YTD:         Round(report.OverAllReturns),
+			SharpeRatio: Round(fund.SharpeRatio3Yrs),
+			MaxDrawdown: Round(fund.MaxDrawdown3Yrs),
 		})
 	}
 
