@@ -311,7 +311,6 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Invalid per_page value", http.StatusBadRequest)
 		return
 	}
-	tx = tx.Limit(perPageInt).Offset(pageInt)
 	// Select only ID and Name from Fund table
 	now := time.Now()
 	firstDayLastMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, now.Location())
@@ -332,55 +331,55 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	case "threeMonth":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "month3_returns"},
+				Column: clause.Column{Name: "fund_reports.month3_returns"},
 				Desc:   isDesc,
 			}},
 		})
-		tx = tx.Where("month3_returns IS NOT NULL")
+		tx = tx.Where("fund_reports.month3_returns IS NOT NULL")
 	case "sixMonth":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "month6_returns"},
+				Column: clause.Column{Name: "fund_reports.month6_returns"},
 				Desc:   isDesc,
 			}},
 		})
-		tx = tx.Where("month6_returns IS NOT NULL")
+		tx = tx.Where("fund_reports.month6_returns IS NOT NULL")
 	case "oneYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "yr1_returns"},
+				Column: clause.Column{Name: "fund_reports.yr1_returns"},
 				Desc:   isDesc,
 			}},
 		})
-		tx = tx.Where("yr1_returns IS NOT NULL")
+		tx = tx.Where("fund_reports.yr1_returns IS NOT NULL")
 	case "twoYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "yr2_returns"},
+				Column: clause.Column{Name: "fund_reports.yr2_returns"},
 				Desc:   isDesc,
 			}},
 		})
-		tx = tx.Where("yr2_returns IS NOT NULL")
+		tx = tx.Where("fund_reports.yr2_returns IS NOT NULL")
 	case "threeYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "yr3_returns"},
+				Column: clause.Column{Name: "fund_reports.yr3_returns"},
 				Desc:   isDesc,
 			}},
 		})
-		tx = tx.Where("yr3_returns IS NOT NULL")
+		tx = tx.Where("fund_reports.yr3_returns IS NOT NULL")
 	case "fiveYear":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "yr5_returns"},
+				Column: clause.Column{Name: "fund_reports.yr5_returns"},
 				Desc:   isDesc,
 			}},
 		})
-		tx = tx.Where("yr5_returns IS NOT NULL")
+		tx = tx.Where("fund_reports.yr5_returns IS NOT NULL")
 	case "ytd":
 		tx = tx.Order(clause.OrderBy{
 			Columns: []clause.OrderByColumn{{
-				Column: clause.Column{Name: "over_all_returns"},
+				Column: clause.Column{Name: "fund_reports.over_all_returns"},
 				Desc:   isDesc,
 			}},
 		})
@@ -412,7 +411,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	}
 
 	reports := []crawler.FundReport{}
-	if err := tx.Find(&reports).Error; err != nil {
+	if err := tx.Session(&gorm.Session{}).Limit(perPageInt).Offset(pageInt).Find(&reports).Error; err != nil {
 		http.Error(w, "Error fetching reports", http.StatusInternalServerError)
 		return
 	}
@@ -427,7 +426,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	if err := db.Model(&crawler.FundReport{}).Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).Count(&resp.Total).Error; err != nil {
+	if err := tx.Count(&resp.Total).Error; err != nil {
 		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
 		return
 	}
