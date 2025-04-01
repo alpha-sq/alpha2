@@ -127,7 +127,7 @@ func (mfc *MutualFundCrawler) CrawlFundNav(fund *MutualFundData) (navs []*Mutual
 			dateStr := s.Find("td").First().Text()
 			navStr := s.Find("td").Last().Text()
 
-			date, _ := time.Parse("02-Jan-2006", dateStr)
+			date, _ := time.Parse("02-01-2006", dateStr)
 			nav, _ := strconv.ParseFloat(navStr, 64)
 			fundNav := &MutualFundNav{
 				MutualFundDataID: fund.ID,
