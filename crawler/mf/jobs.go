@@ -55,7 +55,7 @@ func (j *MFSync) Execute(ctx context.Context) error {
 			},
 		)
 
-		err = jobs.Scheduler.ScheduleJob(jobDetail, quartz.NewRunOnceTrigger(time.Minute*time.Duration(idx)))
+		err = jobs.Scheduler.ScheduleJob(jobDetail, quartz.NewRunOnceTrigger(time.Second*time.Duration(idx)))
 		if err != nil {
 			return err
 		}
@@ -104,5 +104,74 @@ func (m *MFNavSync) SetDescription(s string) {
 }
 
 func (m *MFNavSync) Description() string {
+	return strconv.Itoa(int(m.FundID))
+}
+
+type MFRetuns struct {
+	FundID uint64
+}
+
+func (m *MFRetuns) Execute(ctx context.Context) error {
+	db := crawler.Conn()
+
+	var navs []MutualFundNav
+	err := db.Raw(`
+        WITH RankedNavs AS (
+            SELECT *, 
+                   ROW_NUMBER() OVER (
+                       PARTITION BY mutual_fund_data_id, DATE_TRUNC('month', date) 
+                       ORDER BY date DESC
+                   ) AS rank
+            FROM mutual_fund_navs
+        )
+        SELECT * FROM RankedNavs WHERE rank = 1 AND mutual_fund_data_id = ?;
+    `, m.FundID).Scan(&navs).Error
+	if err != nil {
+		db.Save(&crawler.CrawlerEvent{
+			Data: crawler.JSONB{"FundID": strconv.Itoa(int(m.FundID)), "error": err.Error()},
+		})
+		return err
+	}
+
+	reports := make([]*crawler.FundReport, 0)
+	fund := crawler.Fund{
+		ID:          m.FundID,
+		Type:        "mf",
+		FundReports: reports,
+	}
+	for idx, nav := range navs {
+
+		if idx == 0 {
+			continue
+		}
+		curr := nav.Nav
+		prev := navs[idx-1].Nav
+
+		r := ((*curr - *prev) / *prev) * 100
+		report := &crawler.FundReport{
+			FundID:        m.FundID,
+			ReportDate:    nav.Date,
+			Month1Returns: &r,
+		}
+		reports = append(reports, report)
+	}
+
+	if len(reports) == 0 {
+		return nil
+	}
+
+	if err := db.Save(&fund).Error; err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (m *MFRetuns) SetDescription(s string) {
+	f, _ := strconv.Atoi(s)
+	m.FundID = uint64(f)
+}
+
+func (m *MFRetuns) Description() string {
 	return strconv.Itoa(int(m.FundID))
 }
