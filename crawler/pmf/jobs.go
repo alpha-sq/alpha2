@@ -118,7 +118,7 @@ func (j *PMFInit) Execute(ctx context.Context) (err error) {
 	for _, UID := range UIDs {
 		job := &CrawlPMFFunds{
 			UID:     UID,
-			ForDate: "2018-01-01",
+			ForDate: "2021-01-01",
 		}
 
 		key := fmt.Sprintf("%s-%s", job.UID, job.ForDate)
