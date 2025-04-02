@@ -513,13 +513,13 @@ func getImpactData(w http.ResponseWriter, r *http.Request) {
 
 	// Select only ID and Name from Fund table
 	now := time.Now()
-	firstDayLastMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, now.Location())
+	firstDayLastMonth := time.Date(now.Year(), now.Month()-2, 1, 0, 0, 0, 0, now.Location())
 	lastDayLastMonth := firstDayLastMonth.AddDate(0, 1, -1)
 
 	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
 		Where("funds.name != ''").
-		Where("funds.name in ?", []string{"HDFC AMC Liquid Portfolio", "Parag Parikh Flexi Cap Reg Gr", "HDFC Mid-Cap Opportunities Gr", "HDFC Flexi Cap Gr", "Nippon India Small Cap Gr Gr", "SBI Blue Chip Reg Gr", "ICICI Prudential PMS Value Strategy", "SBI Contra Fund Reg Gr"})
+		Where("funds.name in ?", []string{"HDFC AMC Liquid Portfolio", "Parag Parikh Flexi Cap Reg Gr", "HDFC Mid-Cap Opportunities Gr", "HDFC Flexi Cap Gr", "Nippon India Small Cap Gr Gr", "SBI Blue Chip Reg Gr", "ICICI Prudential PMS Value Strategy", "SBI Contra Fund Reg Gr", "UTI Floater Fund Reg Hly IDCW"})
 
 	reports := []crawler.FundReport{}
 	if err := tx.Session(&gorm.Session{}).Find(&reports).Error; err != nil {
