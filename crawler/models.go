@@ -55,6 +55,8 @@ type Fund struct {
 	MaxDrawdown5Yr  *float64 `json:"max_drawdown_5yr"`
 	SharpeRatio3Yrs *float64 `json:"sharpe_ratio_3yr"`
 	SharpeRatio5Yrs *float64 `json:"sharpe_ratio_5yr"`
+
+	OtherData JSONB `gorm:"type:jsonb"`
 }
 
 type FundReport struct {

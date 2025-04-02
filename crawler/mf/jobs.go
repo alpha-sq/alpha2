@@ -19,6 +19,9 @@ func init() {
 	jobs.RegisterJob("MFNavSync", func() jobs.Job {
 		return &MFNavSync{}
 	})
+	jobs.RegisterJob("MFRetuns", func() jobs.Job {
+		return &MFRetuns{}
+	})
 }
 
 type MFSync struct {
@@ -114,8 +117,17 @@ type MFRetuns struct {
 func (m *MFRetuns) Execute(ctx context.Context) error {
 	db := crawler.Conn()
 
+	fund := &crawler.Fund{}
+	if err := db.Model(&crawler.Fund{}).Find(fund, m.FundID).Error; err != nil {
+		return err
+	}
+	mdID, err := strconv.ParseUint(fund.OtherData["mf_fund_id"], 10, 64)
+	if err != nil {
+		return err
+	}
+
 	var navs []MutualFundNav
-	err := db.Raw(`
+	err = db.Raw(`
         WITH RankedNavs AS (
             SELECT *, 
                    ROW_NUMBER() OVER (
@@ -125,7 +137,7 @@ func (m *MFRetuns) Execute(ctx context.Context) error {
             FROM mutual_fund_navs
         )
         SELECT * FROM RankedNavs WHERE rank = 1 AND mutual_fund_data_id = ?;
-    `, m.FundID).Scan(&navs).Error
+    `, mdID).Scan(&navs).Error
 	if err != nil {
 		db.Save(&crawler.CrawlerEvent{
 			Data: crawler.JSONB{"FundID": strconv.Itoa(int(m.FundID)), "error": err.Error()},
@@ -134,11 +146,6 @@ func (m *MFRetuns) Execute(ctx context.Context) error {
 	}
 
 	reports := make([]*crawler.FundReport, 0)
-	fund := crawler.Fund{
-		ID:          m.FundID,
-		Type:        "mf",
-		FundReports: reports,
-	}
 	for idx, nav := range navs {
 
 		if idx == 0 {
@@ -160,7 +167,7 @@ func (m *MFRetuns) Execute(ctx context.Context) error {
 		return nil
 	}
 
-	if err := db.Save(&fund).Error; err != nil {
+	if err := db.Save(&reports).Error; err != nil {
 		return err
 	}
 
