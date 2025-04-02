@@ -234,7 +234,12 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 	}
 
 	for _, fund := range funds {
-		manager := fund.FundManagers[0].OtherData["RegistrationName"]
+		var manager string
+		if len(fund.FundManagers) > 0 {
+			manager = fund.FundManagers[0].OtherData["RegistrationName"]
+		} else {
+			manager = "Mutual Fund"
+		}
 		apiFunds = append(apiFunds, struct {
 			ID      uint64 `json:"id"`
 			Name    string `json:"name"`
