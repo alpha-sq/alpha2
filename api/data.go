@@ -322,12 +322,12 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	}
 	// Select only ID and Name from Fund table
 	now := time.Now()
-	firstDayLastMonth := time.Date(now.Year(), now.Month()-1, 1, 0, 0, 0, 0, now.Location())
+	firstDayLastMonth := time.Date(now.Year(), now.Month()-2, 1, 0, 0, 0, 0, now.Location())
 	lastDayLastMonth := firstDayLastMonth.AddDate(0, 1, -1)
 
 	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
-		Where("funds.name != ''")
+		Where("funds.name != '' and  funds.type = 'PMF'")
 
 	switch orderby {
 	case "aum":
