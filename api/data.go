@@ -330,12 +330,10 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
 		Where("funds.name != '' and  funds.type = 'PMF'")
-
 	if fundname != "" {
-		tx = tx.Order(clause.OrderBy{
-			Expression: clause.Expr{SQL: "similarity(funds.name, ?) DESC", Vars: []any{fundname}},
-		})
+		tx.Where("similarity(funds.name, ?) > 0.1", fundname)
 	}
+
 	switch orderby {
 	case "aum":
 		tx = tx.Order(clause.OrderBy{
