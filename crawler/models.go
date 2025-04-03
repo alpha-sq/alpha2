@@ -26,6 +26,10 @@ type FundManager struct {
 	Funds []*Fund `gorm:"many2many:fund_x_fund_managers" json:"funds"`
 }
 
+func (f *FundManager) RegistrationName() string {
+	return f.OtherData["RegistrationName"]
+}
+
 type Fund struct {
 	ID   uint64   `json:"id"`
 	Name string   `json:"name"`

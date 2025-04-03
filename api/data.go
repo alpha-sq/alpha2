@@ -271,9 +271,10 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
 	var resp struct {
 		Data []struct {
-			ID   uint64  `json:"id"`
-			Name string  `json:"schemeName"`
-			AUM  float64 `json:"aum"`
+			ID      uint64  `json:"id"`
+			Name    string  `json:"schemeName"`
+			Manager string  `json:"manager"`
+			AUM     float64 `json:"aum"`
 
 			ThreeMonth  float64 `json:"threeMonth"`
 			SixMonth    float64 `json:"sixMonth"`
@@ -289,6 +290,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		Total int64 `json:"total"`
 	}
 
+	fundname := r.URL.Query().Get("search")
 	perPage := r.URL.Query().Get("per_page")
 	page := r.URL.Query().Get("page")
 
@@ -329,6 +331,11 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
 		Where("funds.name != '' and  funds.type = 'PMF'")
 
+	if fundname != "" {
+		tx = tx.Order(clause.OrderBy{
+			Expression: clause.Expr{SQL: "similarity(funds.name, ?) DESC", Vars: []any{fundname}},
+		})
+	}
 	switch orderby {
 	case "aum":
 		tx = tx.Order(clause.OrderBy{
@@ -430,7 +437,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	for i, report := range reports {
 		fundIDs[i] = report.FundID
 	}
-	if err := db.Model(&crawler.Fund{}).Where("id in ?", fundIDs).Find(&funds).Error; err != nil {
+	if err := db.Model(&crawler.Fund{}).Where("id in ?", fundIDs).Preload("FundManagers").Find(&funds).Error; err != nil {
 		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
 		return
 	}
@@ -452,9 +459,14 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		var manager string
+		if len(fund.FundManagers) != 0 {
+			manager = ToTitleCase(fund.FundManagers[0].RegistrationName())
+		}
 		resp.Data = append(resp.Data, struct {
 			ID          uint64  "json:\"id\""
 			Name        string  "json:\"schemeName\""
+			Manager     string  `json:"manager"`
 			AUM         float64 "json:\"aum\""
 			ThreeMonth  float64 "json:\"threeMonth\""
 			SixMonth    float64 "json:\"sixMonth\""
@@ -468,6 +480,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		}{
 			ID:          fund.ID,
 			Name:        ToTitleCase(fund.Name),
+			Manager:     manager,
 			AUM:         Round(fund.AUM),
 			ThreeMonth:  Round(report.Month3Returns),
 			SixMonth:    Round(report.Month6Returns),
