@@ -68,8 +68,8 @@ func convertData(reports []*crawler.FundReport) {
 		}
 		if idx == 0 {
 			c = 100
-			r := b + 100
-			report.Month1Returns = &r
+			// r := b + 100
+			report.Month1Returns = &c
 		} else {
 			prvReport := reports[idx-1]
 			if prvReport.Month1Returns == nil || report.Month1Returns == nil {
