@@ -600,6 +600,7 @@ func reportToFundConverter(reports []*Report) []*crawler.Fund {
 				service.Strategy = "Equity"
 			}
 			fundReport.OtherData["Strategy"] = service.Strategy
+			fundReport.OtherData["AUM"] = strconv.FormatFloat(service.AUM, 'f', 2, 64)
 
 			fund := &crawler.Fund{
 				ID:           service.ID,
