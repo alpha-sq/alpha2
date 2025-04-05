@@ -35,9 +35,7 @@ to quickly create a Cobra application.`,
 		db := crawler.Conn()
 
 		managers := []crawler.FundManager{}
-		err := db.Where(&crawler.FundManager{
-			ID: 6,
-		}).FindInBatches(&managers, 1, func(tx *gorm.DB, batch int) error {
+		err := db.FindInBatches(&managers, 1, func(tx *gorm.DB, batch int) error {
 			UID := managers[0].OtherData["UID"]
 			if UID == "" {
 				return nil
