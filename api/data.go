@@ -228,7 +228,11 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 	tx = tx.Limit(perPageInt)
 	// Select only ID and Name from Fund table
 	funds := []crawler.Fund{}
-	if err := tx.Find(&funds).Error; err != nil {
+	if err := tx.
+		Where(&crawler.Fund{
+			IsHidden: false,
+		}).
+		Find(&funds).Error; err != nil {
 		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
 		return
 	}
@@ -271,20 +275,21 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
 	var resp struct {
 		Data []struct {
-			ID      uint64  `json:"id"`
-			Name    string  `json:"schemeName"`
-			Manager string  `json:"manager"`
-			AUM     float64 `json:"aum"`
+			ID      uint64   `json:"id"`
+			Name    string   `json:"schemeName"`
+			Manager string   `json:"manager"`
+			AUM     *float64 `json:"aum"`
 
-			ThreeMonth  float64 `json:"threeMonth"`
-			SixMonth    float64 `json:"sixMonth"`
-			OneYear     float64 `json:"oneYear"`
-			TwoYear     float64 `json:"twoYear"`
-			ThreeYear   float64 `json:"threeYear"`
-			FiveYear    float64 `json:"fiveYear"`
-			YTD         float64 `json:"ytd"`
-			SharpeRatio float64 `json:"sharpeRatio"`
-			MaxDrawdown float64 `json:"maxDrawdown"`
+			OneMonth    *float64 `json:"oneMonth"`
+			ThreeMonth  *float64 `json:"threeMonth"`
+			SixMonth    *float64 `json:"sixMonth"`
+			OneYear     *float64 `json:"oneYear"`
+			TwoYear     *float64 `json:"twoYear"`
+			ThreeYear   *float64 `json:"threeYear"`
+			FiveYear    *float64 `json:"fiveYear"`
+			YTD         *float64 `json:"ytd"`
+			SharpeRatio *float64 `json:"sharpeRatio"`
+			MaxDrawdown *float64 `json:"maxDrawdown"`
 		} `json:"data"`
 
 		Total int64 `json:"total"`
@@ -329,7 +334,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 
 	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
-		Where("funds.name != '' and  funds.type = 'PMF'")
+		Where("funds.name != '' and  funds.type = 'PMF' and funds.is_hidden = false")
 	if fundname != "" {
 		tx.Where("similarity(funds.name, ?) > 0.1", fundname)
 	}
@@ -462,24 +467,26 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 			manager = ToTitleCase(fund.FundManagers[0].RegistrationName())
 		}
 		resp.Data = append(resp.Data, struct {
-			ID          uint64  "json:\"id\""
-			Name        string  "json:\"schemeName\""
-			Manager     string  `json:"manager"`
-			AUM         float64 "json:\"aum\""
-			ThreeMonth  float64 "json:\"threeMonth\""
-			SixMonth    float64 "json:\"sixMonth\""
-			OneYear     float64 "json:\"oneYear\""
-			TwoYear     float64 "json:\"twoYear\""
-			ThreeYear   float64 "json:\"threeYear\""
-			FiveYear    float64 "json:\"fiveYear\""
-			YTD         float64 "json:\"ytd\""
-			SharpeRatio float64 "json:\"sharpeRatio\""
-			MaxDrawdown float64 "json:\"maxDrawdown\""
+			ID          uint64   "json:\"id\""
+			Name        string   "json:\"schemeName\""
+			Manager     string   `json:"manager"`
+			AUM         *float64 "json:\"aum\""
+			OneMonth    *float64 `json:"oneMonth"`
+			ThreeMonth  *float64 "json:\"threeMonth\""
+			SixMonth    *float64 "json:\"sixMonth\""
+			OneYear     *float64 "json:\"oneYear\""
+			TwoYear     *float64 "json:\"twoYear\""
+			ThreeYear   *float64 "json:\"threeYear\""
+			FiveYear    *float64 "json:\"fiveYear\""
+			YTD         *float64 "json:\"ytd\""
+			SharpeRatio *float64 "json:\"sharpeRatio\""
+			MaxDrawdown *float64 "json:\"maxDrawdown\""
 		}{
 			ID:          fund.ID,
 			Name:        ToTitleCase(fund.Name),
 			Manager:     manager,
 			AUM:         Round(fund.AUM),
+			OneMonth:    Round(report.Month1Returns),
 			ThreeMonth:  Round(report.Month3Returns),
 			SixMonth:    Round(report.Month6Returns),
 			OneYear:     Round(report.Yr1Returns),
@@ -502,19 +509,19 @@ func getImpactData(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
 	var resp struct {
 		Data []struct {
-			ID   uint64  `json:"id"`
-			Name string  `json:"schemeName"`
-			AUM  float64 `json:"aum"`
+			ID   uint64   `json:"id"`
+			Name string   `json:"schemeName"`
+			AUM  *float64 `json:"aum"`
 
-			ThreeMonth  float64 `json:"threeMonth"`
-			SixMonth    float64 `json:"sixMonth"`
-			OneYear     float64 `json:"oneYear"`
-			TwoYear     float64 `json:"twoYear"`
-			ThreeYear   float64 `json:"threeYear"`
-			FiveYear    float64 `json:"fiveYear"`
-			YTD         float64 `json:"ytd"`
-			SharpeRatio float64 `json:"sharpeRatio"`
-			MaxDrawdown float64 `json:"maxDrawdown"`
+			ThreeMonth  *float64 `json:"threeMonth"`
+			SixMonth    *float64 `json:"sixMonth"`
+			OneYear     *float64 `json:"oneYear"`
+			TwoYear     *float64 `json:"twoYear"`
+			ThreeYear   *float64 `json:"threeYear"`
+			FiveYear    *float64 `json:"fiveYear"`
+			YTD         *float64 `json:"ytd"`
+			SharpeRatio *float64 `json:"sharpeRatio"`
+			MaxDrawdown *float64 `json:"maxDrawdown"`
 		} `json:"data"`
 
 		Total int64 `json:"total"`
@@ -529,7 +536,7 @@ func getImpactData(w http.ResponseWriter, r *http.Request) {
 
 	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
-		Where("funds.name != ''").
+		Where("funds.name != '' and and funds.is_hidden = false").
 		Where("funds.name in ?", []string{"HDFC AMC Liquid Portfolio", "Parag Parikh Flexi Cap Reg Gr", "HDFC Mid-Cap Opportunities Gr", "HDFC Flexi Cap Gr", "Nippon India Small Cap Gr Gr", "SBI Blue Chip Reg Gr", "ICICI Prudential PMS Value Strategy", "SBI Contra Fund Reg Gr", "UTI Floater Fund Reg Hly IDCW"})
 
 	reports := []crawler.FundReport{}
@@ -566,18 +573,18 @@ func getImpactData(w http.ResponseWriter, r *http.Request) {
 		}
 
 		resp.Data = append(resp.Data, struct {
-			ID          uint64  "json:\"id\""
-			Name        string  "json:\"schemeName\""
-			AUM         float64 "json:\"aum\""
-			ThreeMonth  float64 "json:\"threeMonth\""
-			SixMonth    float64 "json:\"sixMonth\""
-			OneYear     float64 "json:\"oneYear\""
-			TwoYear     float64 "json:\"twoYear\""
-			ThreeYear   float64 "json:\"threeYear\""
-			FiveYear    float64 "json:\"fiveYear\""
-			YTD         float64 "json:\"ytd\""
-			SharpeRatio float64 "json:\"sharpeRatio\""
-			MaxDrawdown float64 "json:\"maxDrawdown\""
+			ID          uint64   "json:\"id\""
+			Name        string   "json:\"schemeName\""
+			AUM         *float64 "json:\"aum\""
+			ThreeMonth  *float64 "json:\"threeMonth\""
+			SixMonth    *float64 "json:\"sixMonth\""
+			OneYear     *float64 "json:\"oneYear\""
+			TwoYear     *float64 "json:\"twoYear\""
+			ThreeYear   *float64 "json:\"threeYear\""
+			FiveYear    *float64 "json:\"fiveYear\""
+			YTD         *float64 "json:\"ytd\""
+			SharpeRatio *float64 "json:\"sharpeRatio\""
+			MaxDrawdown *float64 "json:\"maxDrawdown\""
 		}{
 			ID:          fund.ID,
 			Name:        ToTitleCase(fund.Name),
@@ -600,11 +607,12 @@ func getImpactData(w http.ResponseWriter, r *http.Request) {
 
 }
 
-func Round(num *float64) float64 {
+func Round(num *float64) *float64 {
 	if num == nil {
-		return 0
+		return nil
 	}
 
-	return math.Round(*num*100) / 100
+	t := math.Round(*num*100) / 100
+	return &t
 
 }

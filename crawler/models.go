@@ -35,6 +35,8 @@ type Fund struct {
 	Name string   `json:"name"`
 	AUM  *float64 `json:"aum"`
 
+	IsHidden bool
+
 	FundManagers []*FundManager `gorm:"many2many:fund_x_fund_managers" json:"fund_managers"`
 	FundReports  []*FundReport
 
