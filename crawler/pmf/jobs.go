@@ -41,7 +41,7 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 		db.Transaction(func(tx *gorm.DB) error {
 			for _, fund := range funds {
 				tx := db.Model(&crawler.Fund{}).Clauses(clause.OnConflict{
-					DoNothing: true,
+					DoUpdates: clause.AssignmentColumns([]string{"name", "email", "contact", "address", "total_no_of_client", "other_data", "total_aum"}),
 				}).Create(fund)
 				if tx.Error != nil {
 					jsonfund, _ := json.Marshal(fund)

@@ -250,7 +250,7 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 			Manager string `json:"manager"`
 		}{
 			ID:      fund.ID,
-			Name:    ToTitleCase(fund.Name),
+			Name:    ToTitleCase(fund.DisplayName()),
 			Manager: manager,
 		})
 	}
@@ -466,6 +466,7 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 		if len(fund.FundManagers) != 0 {
 			manager = ToTitleCase(fund.FundManagers[0].RegistrationName())
 		}
+
 		resp.Data = append(resp.Data, struct {
 			ID          uint64   "json:\"id\""
 			Name        string   "json:\"schemeName\""
@@ -483,9 +484,9 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 			MaxDrawdown *float64 "json:\"maxDrawdown\""
 		}{
 			ID:          fund.ID,
-			Name:        ToTitleCase(fund.Name),
+			Name:        ToTitleCase(fund.DisplayName()),
 			Manager:     manager,
-			AUM:         Round(fund.AUM),
+			AUM:         Round(report.AUM()),
 			OneMonth:    Round(report.Month1Returns),
 			ThreeMonth:  Round(report.Month3Returns),
 			SixMonth:    Round(report.Month6Returns),
@@ -587,7 +588,7 @@ func getImpactData(w http.ResponseWriter, r *http.Request) {
 			MaxDrawdown *float64 "json:\"maxDrawdown\""
 		}{
 			ID:          fund.ID,
-			Name:        ToTitleCase(fund.Name),
+			Name:        ToTitleCase(fund.DisplayName()),
 			AUM:         Round(fund.AUM),
 			ThreeMonth:  Round(report.Month3Returns),
 			SixMonth:    Round(report.Month6Returns),

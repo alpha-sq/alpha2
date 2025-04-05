@@ -4,6 +4,7 @@ import (
 	"database/sql/driver"
 	"encoding/json"
 	"errors"
+	"strconv"
 	"time"
 )
 
@@ -65,6 +66,17 @@ type Fund struct {
 	OtherData JSONB `gorm:"type:jsonb"`
 }
 
+func (f *Fund) DisplayName() string {
+	if f.OtherData == nil {
+		return f.Name
+	}
+	label, ok := f.OtherData["label"]
+	if !ok {
+		return f.Name
+	}
+	return label
+}
+
 type FundReport struct {
 	ID     uint64
 	FundID uint64 `json:"fund_id"`
@@ -83,6 +95,21 @@ type FundReport struct {
 	OverAllReturns *float64 `json:"over_all_return"`
 
 	OtherData JSONB `gorm:"type:jsonb" json:"-"`
+}
+
+func (f *FundReport) AUM() *float64 {
+	if f.OtherData == nil {
+		return nil
+	}
+	aum, ok := f.OtherData["AUM"]
+	if !ok {
+		return nil
+	}
+	aumFloat, err := strconv.ParseFloat(aum, 64)
+	if err != nil {
+		return nil
+	}
+	return &aumFloat
 }
 
 type FundXFundManagers struct {

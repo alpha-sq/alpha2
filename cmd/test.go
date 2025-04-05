@@ -4,13 +4,16 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
-	"alpha2/crawler/mf"
+	"alpha2/crawler"
+	"alpha2/crawler/pmf"
 	"alpha2/jobs"
 	"context"
 	"time"
 
 	"github.com/reugn/go-quartz/quartz"
+	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"gorm.io/gorm"
 )
 
 // testCmd represents the test command
@@ -28,11 +31,29 @@ to quickly create a Cobra application.`,
 		ctx, cancel := context.WithCancel(context.Background())
 		defer cancel()
 		jobs.Scheduler.Start(ctx)
-		job := &mf.MFSync{}
-		jd := quartz.NewJobDetail(job, quartz.NewJobKeyWithGroup("init", "MFSync"))
-		t := quartz.NewRunOnceTrigger(time.Second * 5)
 
-		jobs.Scheduler.ScheduleJob(jd, t)
+		db := crawler.Conn()
+
+		managers := []crawler.FundManager{}
+		err := db.Where(&crawler.FundManager{
+			ID: 6,
+		}).FindInBatches(&managers, 1, func(tx *gorm.DB, batch int) error {
+			UID := managers[0].OtherData["UID"]
+			if UID == "" {
+				return nil
+			}
+
+			job := &pmf.CrawlPMFFunds{
+				UID:     UID,
+				ForDate: "2025-02-01",
+			}
+			jd := quartz.NewJobDetail(job, quartz.NewJobKeyWithGroup("ifnit:2025-02-01:"+UID, "CrawlPMFFunds"))
+			t := quartz.NewRunOnceTrigger(time.Second * 5)
+			return jobs.Scheduler.ScheduleJob(jd, t)
+		}).Error
+		if err != nil {
+			log.Error().Err(err).Msg("Error in FindInBatches")
+		}
 
 		jobs.Scheduler.Wait(ctx)
 

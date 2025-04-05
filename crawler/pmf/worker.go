@@ -451,7 +451,7 @@ func (p *PMFCrawler) GetReport(ctx *colly.Context) *Report {
 		Year:        year,
 		Month:       month,
 		GeneralInfo: p.GetFundManager(UID),
-		Services:    make([]DiscretionaryService, 0),
+		Services:    make([]*DiscretionaryService, 0),
 		Complaints:  &Complaints{},
 	}
 

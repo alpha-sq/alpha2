@@ -6,6 +6,7 @@ package cmd
 import (
 	"alpha2/crawler"
 	"math"
+	"time"
 
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -147,6 +148,32 @@ to quickly create a Cobra application.`,
 
 			return nil
 		})
+
+		err := db.FindInBatches(&funds, 1, func(tx *gorm.DB, batch int) error {
+			fund := funds[0]
+			reports := []crawler.FundReport{}
+			now := time.Now().AddDate(0, -5, 0)
+			err := db.Where(&crawler.FundReport{
+				FundID: fund.ID,
+			}).
+				Where("report_date > ?", now).
+				Find(&reports).Error
+
+			if err != nil {
+				return err
+			}
+			if len(reports) < 3 {
+				fund.IsHidden = true
+				if err := db.Save(&fund).Error; err != nil {
+					return err
+				}
+			}
+			return nil
+		}).Error
+
+		if err != nil {
+			log.Error().Err(err).Msg("computation failed")
+		}
 	},
 }
 

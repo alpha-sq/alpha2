@@ -9,9 +9,9 @@ type Report struct {
 	Month         int
 	FundManagerID int
 
-	GeneralInfo *crawler.FundManager   `gorm:"-"`
-	Services    []DiscretionaryService `gorm:"foreignKey:ReportID"`
-	Complaints  *Complaints            `gorm:"foreignKey:ReportID"`
+	GeneralInfo *crawler.FundManager    `gorm:"-"`
+	Services    []*DiscretionaryService `gorm:"foreignKey:ReportID"`
+	Complaints  *Complaints             `gorm:"foreignKey:ReportID"`
 }
 
 type DiscretionaryService struct {
@@ -40,7 +40,7 @@ func (r *Report) FindServiceByFundName(fundName string) *DiscretionaryService {
 	// find the service by fund name, need to implement a fuzzy search
 	for _, service := range r.Services {
 		if service.FundName == fundName {
-			return &service
+			return service
 		}
 	}
 
@@ -61,7 +61,7 @@ func (r *Report) FindServiceByFundName(fundName string) *DiscretionaryService {
 			}
 		}
 	}
-	r.Services = append(r.Services, *service)
+	r.Services = append(r.Services, service)
 
 	return service
 }
