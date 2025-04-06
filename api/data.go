@@ -467,6 +467,10 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
+		if report.Month1Returns == nil && report.Month3Returns == nil && report.Month6Returns == nil && report.Yr1Returns == nil {
+			continue
+		}
+
 		var manager string
 		if len(fund.FundManagers) != 0 {
 			manager = ToTitleCase(fund.FundManagers[0].RegistrationName())
