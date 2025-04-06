@@ -467,7 +467,11 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			continue
 		}
 
-		if report.Month1Returns == nil && report.Month3Returns == nil && report.Month6Returns == nil && report.Yr1Returns == nil {
+		if Round(report.Month1Returns) == nil && report.Month3Returns == nil && report.Month6Returns == nil && report.Yr1Returns == nil {
+			continue
+		}
+
+		if (Round(report.Month1Returns) != nil && *Round(report.Month1Returns) == 0) && (Round(report.Month3Returns) != nil && *Round(report.Month3Returns) == 0) && (Round(report.Month6Returns) != nil && *Round(report.Month6Returns) == 0) {
 			continue
 		}
 
