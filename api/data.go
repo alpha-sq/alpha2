@@ -48,7 +48,16 @@ func getTrailingReturns(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var reports []*crawler.FundReport
-	if err := db.Where("fund_id = ? AND report_date BETWEEN ? AND ?", fundID, startTime, endTime).Find(&reports).Error; err != nil {
+	err = db.
+		Raw(`
+        SELECT DISTINCT ON (fund_id, DATE_TRUNC('month', report_date)) *
+        FROM fund_reports
+        WHERE fund_id = ?
+          AND report_date BETWEEN ? AND ?
+        ORDER BY fund_id, DATE_TRUNC('month', report_date), report_date DESC
+    `, fundID, startTime, endTime).
+		Scan(&reports).Error
+	if err != nil {
 		http.Error(w, "Error fetching reports", http.StatusInternalServerError)
 		return
 	}
@@ -81,42 +90,6 @@ func convertData(reports []*crawler.FundReport) {
 		}
 
 	}
-}
-
-// Handler to get rolling returns
-func getRollingReturns(w http.ResponseWriter, r *http.Request) {
-	db := crawler.Conn()
-	fundID := chi.URLParam(r, "fundID")
-	var reports []crawler.FundReport
-
-	// Fetch last 5 years' reports for rolling calculation
-	if err := db.Where("fund_id = ?", fundID).Order("report_date DESC").Limit(5).Find(&reports).Error; err != nil {
-		http.Error(w, "Error fetching reports", http.StatusInternalServerError)
-		return
-	}
-
-	// Calculate rolling average return
-	var sumReturns float64
-	count := 0
-	for _, report := range reports {
-		if report.Yr1Returns != nil {
-			sumReturns += *report.Yr1Returns
-			count++
-		}
-	}
-
-	rollingReturn := 0.0
-	if count > 0 {
-		rollingReturn = sumReturns / float64(count)
-	}
-
-	resp := map[string]interface{}{
-		"fund_id":        fundID,
-		"rolling_return": rollingReturn,
-		"report_count":   count,
-	}
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
 }
 
 // Handler to get discrete returns
