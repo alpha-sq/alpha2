@@ -205,11 +205,21 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 		ftype = "PMF"
 	}
 
-	tx := db.Model(&crawler.Fund{}).Preload("FundManagers").Where(&crawler.Fund{Type: ftype, IsHidden: false})
-	if fundname != "" {
-		tx = tx.Order(clause.OrderBy{
-			Expression: clause.Expr{SQL: "similarity(other_data->>'label', ?) DESC", Vars: []any{fundname}},
-		})
+	var tx *gorm.DB
+	if ftype == "PMF" {
+		tx = db.Model(&crawler.Fund{}).Preload("FundManagers").Where("type = 'PMF' and  other_data != 'null' and is_hidden = false")
+		if fundname != "" {
+			tx = tx.Order(clause.OrderBy{
+				Expression: clause.Expr{SQL: "similarity(other_data->>'label', ?) DESC", Vars: []any{fundname}},
+			})
+		}
+	} else {
+		tx = db.Model(&crawler.Fund{}).Preload("FundManagers").Where("type = 'MF' and is_hidden = false")
+		if fundname != "" {
+			tx = tx.Order(clause.OrderBy{
+				Expression: clause.Expr{SQL: "similarity(name, ?) DESC", Vars: []any{fundname}},
+			})
+		}
 	}
 
 	if perPage == "" {
