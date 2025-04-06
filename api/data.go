@@ -63,7 +63,10 @@ func getTrailingReturns(w http.ResponseWriter, r *http.Request) {
 	}
 	w.Header().Set("Content-Type", "application/json")
 	convertData(reports)
-	json.NewEncoder(w).Encode(reports)
+	if err := json.NewEncoder(w).Encode(reports); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func convertData(reports []*crawler.FundReport) {
@@ -165,7 +168,11 @@ func getDiscreteReturns(w http.ResponseWriter, r *http.Request) {
 		"discrete_returns": discreteReturns,
 	}
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
+
 }
 
 func getAllFunds(w http.ResponseWriter, r *http.Request) {
@@ -230,7 +237,10 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 
 	// Respond with JSON
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(apiFunds)
+	if err := json.NewEncoder(w).Encode(apiFunds); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 
 }
 
@@ -244,7 +254,7 @@ func ToTitleCase(s string) string {
 	return strings.ToUpper(string(words[0])) + words[1:]
 }
 
-func getPMSData(w http.ResponseWriter, r *http.Request) {
+func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
 	var resp struct {
 		Data []struct {
@@ -475,8 +485,10 @@ func getPMSData(w http.ResponseWriter, r *http.Request) {
 
 	// Respond with JSON
 	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(resp)
-
+	if err := json.NewEncoder(w).Encode(resp); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
 
 func Round(num *float64) *float64 {

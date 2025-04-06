@@ -47,7 +47,7 @@ func RunServer() {
 		r.Post("/jobs", handlers.AddJob)
 
 		r.Get("/funds", getAllFunds)
-		r.Get("/funds/explore", getPMSData)
+		r.Get("/funds/explore", getExplorePMSData)
 		r.Get("/fund/{fundID}/trailing-returns", getTrailingReturns)
 		// r.Get("/funds/impact", getImpactData)
 		// r.Get("/fund/{fundID}/rolling-returns", getRollingReturns)
