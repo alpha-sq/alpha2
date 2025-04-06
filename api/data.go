@@ -609,7 +609,7 @@ func getImpactData(w http.ResponseWriter, r *http.Request) {
 }
 
 func Round(num *float64) *float64 {
-	if num == nil {
+	if num == nil || math.IsNaN(*num) {
 		return nil
 	}
 
