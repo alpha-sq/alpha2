@@ -205,7 +205,7 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 		ftype = "PMF"
 	}
 
-	tx := db.Model(&crawler.Fund{}).Select("id, name").Preload("FundManagers").Where(&crawler.Fund{Type: ftype})
+	tx := db.Model(&crawler.Fund{}).Select("id, name").Preload("FundManagers").Where(&crawler.Fund{Type: ftype, IsHidden: false})
 	if fundname != "" {
 		tx = tx.Order(clause.OrderBy{
 			Expression: clause.Expr{SQL: "similarity(name, ?) DESC", Vars: []any{fundname}},
