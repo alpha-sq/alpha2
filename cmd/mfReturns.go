@@ -8,6 +8,7 @@ import (
 	"alpha2/crawler/mf"
 	"alpha2/jobs"
 	"context"
+	"fmt"
 	"strconv"
 	"time"
 
@@ -50,7 +51,7 @@ to quickly create a Cobra application.`,
 				job := &mf.MFRetuns{
 					FundID: cFund.ID,
 				}
-				jd := quartz.NewJobDetail(job, quartz.NewJobKeyWithGroup("init", "MFRetuns"))
+				jd := quartz.NewJobDetail(job, quartz.NewJobKeyWithGroup(fmt.Sprintf("InitMFRetuns-%v", cFund.ID), "MFRetuns"))
 				t := quartz.NewRunOnceTrigger(time.Second * 5)
 				jobs.Scheduler.ScheduleJob(jd, t)
 			}
