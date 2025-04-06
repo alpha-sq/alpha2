@@ -107,7 +107,7 @@ to quickly create a Cobra application.`,
 		}
 
 		funds := []crawler.Fund{}
-		db.Where(&crawler.Fund{IsHidden: false, Type: "PMF"}).FindInBatches(&funds, 1, func(tx *gorm.DB, batch int) error {
+		err = db.Where(&crawler.Fund{IsHidden: false, Type: "PMF"}).FindInBatches(&funds, 1, func(tx *gorm.DB, batch int) error {
 
 			fund := funds[0]
 			duplicatefunds := []crawler.Fund{}
@@ -136,6 +136,7 @@ to quickly create a Cobra application.`,
 
 			lo.ForEach(duplicateFundReports, func(report crawler.FundReport, index int) {
 				report.OtherData["merged_id"] = strconv.FormatUint(report.FundID, 10)
+				report.OtherData["priority"] = "low"
 				report.FundID = fund.ID
 			})
 
@@ -146,7 +147,14 @@ to quickly create a Cobra application.`,
 			}
 
 			return nil
-		})
+		}).Error
+
+		if err != nil {
+			log.Error().Err(err).Msg("Error finding funds")
+			return
+		}
+
+		log.Info().Msg("Done merging funds")
 	},
 }
 
