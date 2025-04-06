@@ -205,10 +205,10 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 		ftype = "PMF"
 	}
 
-	tx := db.Model(&crawler.Fund{}).Select("id, name").Preload("FundManagers").Where(&crawler.Fund{Type: ftype, IsHidden: false})
+	tx := db.Model(&crawler.Fund{}).Preload("FundManagers").Where(&crawler.Fund{Type: ftype, IsHidden: false})
 	if fundname != "" {
 		tx = tx.Order(clause.OrderBy{
-			Expression: clause.Expr{SQL: "similarity(name, ?) DESC", Vars: []any{fundname}},
+			Expression: clause.Expr{SQL: "similarity(other_data->>'name', ?) DESC", Vars: []any{fundname}},
 		})
 	}
 
@@ -224,9 +224,6 @@ func getAllFunds(w http.ResponseWriter, r *http.Request) {
 	// Select only ID and Name from Fund table
 	funds := []crawler.Fund{}
 	if err := tx.
-		Where(&crawler.Fund{
-			IsHidden: false,
-		}).
 		Find(&funds).Error; err != nil {
 		http.Error(w, "Error fetching funds", http.StatusInternalServerError)
 		return
