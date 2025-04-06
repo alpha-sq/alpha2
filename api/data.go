@@ -14,6 +14,12 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+type LineGraphData struct {
+	ReportDate *time.Time `json:"report_date"`
+	Amount     *float64   `json:"amount"`
+	Returns    *float64   `json:"returns"`
+}
+
 // Handler to get trailing returns
 func getTrailingReturns(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
@@ -62,17 +68,22 @@ func getTrailingReturns(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
-	convertData(reports)
-	if err := json.NewEncoder(w).Encode(reports); err != nil {
+	apiData := convertData(reports)
+	if err := json.NewEncoder(w).Encode(apiData); err != nil {
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 		return
 	}
 }
 
-func convertData(reports []*crawler.FundReport) {
+func convertData(reports []*crawler.FundReport) []*LineGraphData {
+	apiData := make([]*LineGraphData, 0)
 	for idx, report := range reports {
 		var c float64
 		var b float64
+		data := LineGraphData{
+			ReportDate: report.ReportDate,
+			Returns:    report.Month1Returns,
+		}
 		if report.Month1Returns == nil {
 			b = 0
 		} else {
@@ -92,7 +103,11 @@ func convertData(reports []*crawler.FundReport) {
 			report.Month1Returns = &r
 		}
 
+		data.Amount = report.Month1Returns
+		apiData = append(apiData, &data)
 	}
+
+	return apiData
 }
 
 // Handler to get discrete returns
