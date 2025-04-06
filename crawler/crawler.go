@@ -20,7 +20,7 @@ func Conn() *gorm.DB {
 	if db != nil {
 		return db
 	}
-	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s sslmode=%s", viper.GetString("db.host"), viper.GetString("db.user"), viper.GetString("db.password"), viper.GetString("db.dbname"), viper.GetString("db.port"), viper.GetString("db.sslmode"))
+	dsn := fmt.Sprintf("host=%s user=%s password=%s dbname=%s port=%s", viper.GetString("db.host"), viper.GetString("db.user"), viper.GetString("db.password"), viper.GetString("db.dbname"), viper.GetString("db.port"))
 	var err error
 	gormLogger := &ZeroLogger{log: log.Logger}
 	db, err = gorm.Open(postgres.Open(dsn), &gorm.Config{Logger: gormLogger})
