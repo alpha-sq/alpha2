@@ -5,9 +5,10 @@ package cmd
 
 import (
 	"alpha2/crawler"
-	"time"
+	"strconv"
 
 	"github.com/rs/zerolog/log"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 )
@@ -25,30 +26,68 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		db := crawler.Conn()
 
-		var reports []crawler.FundReport
-		now := time.Now()
-		now = now.AddDate(0, -6, 0)
-		db.Where("report_date > ?", now).Order("other_data->>'merged_id'").FindInBatches(&reports, 1, func(tx *gorm.DB, batch int) error {
-			for _, report := range reports {
-				if report.ID == 0 {
+		var funds []crawler.Fund
+		err := db.Where("type = 'PMF' and other_data != 'null'").FindInBatches(&funds, 1, func(tx *gorm.DB, batch int) error {
+			for _, fund := range funds {
+
+				var reports []*crawler.FundReport
+				tx.Where("fund_id = ?", fund.ID).Find(&reports)
+				if len(reports) == 0 {
+					log.Info().Msgf("No reports found for fund %d on date %s", fund.ID, fund.OtherData)
 					continue
 				}
 
-				tx := db.
-					Where("fund_id = ? and report_date = ? and id != ?", report.FundID, report.ReportDate, report.ID).
-					Delete(&crawler.FundReport{})
-
-				if tx.Error != nil {
-					return tx.Error
+				if fund.OtherData == nil {
+					log.Warn().Msgf("No other_data found for fund %d on date %s", fund.ID, fund.OtherData)
+					continue
 				}
 
-				if tx.RowsAffected > 0 {
-					log.Info().Msgf("Deleted %d duplicate reports for fund %d on date %s", tx.RowsAffected, report.FundID, report.ReportDate)
+				idStr := fund.OtherData["original_id"]
+				if idStr == "" {
+					log.Warn().Msgf("No original_id found for fund %d on date %s", fund.ID, fund.OtherData)
+					continue
 				}
+				originalID, err := strconv.ParseUint(idStr, 10, 64)
+				if err != nil {
+					log.Error().Err(err).Msgf("Failed to parse original_id for fund %d on date %s", fund.ID, fund.OtherData)
+					return err
+				}
+
+				if originalID == fund.ID {
+					log.Warn().Msgf("Original ID is the same as fund ID for fund %d on date %s", fund.ID, fund.OtherData)
+					continue
+				}
+
+				lo.ForEach(reports, func(report *crawler.FundReport, idx int) {
+					report.ID = 0
+					report.FundID = originalID
+
+					if report.OtherData == nil {
+						report.OtherData = crawler.JSONB{}
+					}
+
+					report.OtherData["priority"] = "low"
+				})
+
+				err = tx.Create(&reports).Error
+				if err != nil {
+					log.Error().Err(err).Msgf("Failed to create reports for fund %d on date %s", fund.ID, fund.OtherData)
+					return err
+				}
+
+				// if tx.RowsAffected > 0 {
+				// 	log.Info().Msgf("Deleted %d duplicate reports for fund %d on date %s", tx.RowsAffected, report.FundID, report.ReportDate)
+				// }
 			}
 
 			return nil
-		})
+		}).Error
+
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to remove duplicate reports")
+		} else {
+			log.Info().Msg("Successfully removed duplicate reports")
+		}
 	},
 }
 
