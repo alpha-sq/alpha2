@@ -346,7 +346,7 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 		Where("funds.name != '' and  funds.type = 'PMF' and funds.is_hidden = false")
 	filter := r.URL.Query().Get("filter")
 	if filter != "" && filter != "All Funds" {
-		tx.Where("other_data != 'null' and other_data->>'label' in ?", getFundsByFilter(filter))
+		tx.Where("funds.other_data != 'null' and funds.other_data->>'label' in ?", getFundsByFilter(filter))
 	}
 	if fundname != "" {
 		tx.Where("similarity(funds.name, ?) > 0.1", fundname)
