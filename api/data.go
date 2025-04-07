@@ -2,14 +2,18 @@ package api
 
 import (
 	"alpha2/crawler"
+	"encoding/csv"
 	"encoding/json"
 	"math"
 	"net/http"
+	"os"
 	"strconv"
 	"strings"
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/rs/zerolog/log"
+	"github.com/samber/lo"
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
@@ -340,6 +344,10 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
 		Where("funds.name != '' and  funds.type = 'PMF' and funds.is_hidden = false")
+	filter := r.URL.Query().Get("filter")
+	if filter != "" && filter != "All Funds" {
+		tx.Where("other_data != 'null' and other_data->>'label' in ?", getFundsByFilter(filter))
+	}
 	if fundname != "" {
 		tx.Where("similarity(funds.name, ?) > 0.1", fundname)
 	}
@@ -529,4 +537,30 @@ func Round(num *float64) *float64 {
 	t := math.Round(*num*100) / 100
 	return &t
 
+}
+
+func getFundsByFilter(filter string) []string {
+	file, err := os.Open("./static/filters.csv")
+	if err != nil {
+		log.Error().Err(err).Msg("Error opening file")
+	}
+	defer file.Close()
+
+	// Create a new CSV reader
+	reader := csv.NewReader(file)
+
+	// Read all records
+	records, err := reader.ReadAll()
+
+	funds := make([]string, 0)
+	lo.ForEach(records, func(rec []string, i int) {
+		if len(rec) < 2 {
+			return
+		}
+		if rec[1] == filter {
+			funds = append(funds, rec[0])
+		}
+	})
+
+	return funds
 }
