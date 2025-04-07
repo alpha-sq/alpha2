@@ -551,6 +551,9 @@ func getFundsByFilter(filter string) []string {
 
 	// Read all records
 	records, err := reader.ReadAll()
+	if err != nil {
+		log.Error().Err(err).Msg("Error opening file")
+	}
 
 	funds := make([]string, 0)
 	lo.ForEach(records, func(rec []string, i int) {
