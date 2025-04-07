@@ -343,7 +343,7 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 
 	tx = tx.Joins("JOIN funds ON funds.id = fund_reports.fund_id").
 		Where("report_date BETWEEN ? AND ?", firstDayLastMonth, lastDayLastMonth).
-		Where("funds.name != '' and  funds.type = 'PMF' and funds.is_hidden = false and fund_reports > 10")
+		Where("funds.name != '' and  funds.type = 'PMF' and funds.is_hidden = false")
 	filter := r.URL.Query().Get("filter")
 	if filter != "" && filter != "All Funds" {
 		tx.Where("funds.other_data != 'null' and funds.other_data->>'label' in ?", getFundsByFilter(filter))
