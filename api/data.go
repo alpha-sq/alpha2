@@ -488,6 +488,12 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			manager = ToTitleCase(fund.FundManagers[0].RegistrationName())
 		}
 
+		if fund.MaxDrawdown3Yrs != nil {
+			t := *fund.MaxDrawdown3Yrs * 100
+
+			fund.MaxDrawdown3Yrs = &t
+		}
+
 		resp.Data = append(resp.Data, struct {
 			ID          uint64   "json:\"id\""
 			Name        string   "json:\"schemeName\""
