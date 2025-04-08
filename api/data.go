@@ -295,8 +295,8 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			OneYear     *float64 `json:"oneYear"`
 			TwoYear     *float64 `json:"twoYear"`
 			ThreeYear   *float64 `json:"threeYear"`
+			FourYear    *float64 `json:"fourYear"`
 			FiveYear    *float64 `json:"fiveYear"`
-			YTD         *float64 `json:"ytd"`
 			SharpeRatio *float64 `json:"sharpeRatio"`
 			MaxDrawdown *float64 `json:"maxDrawdown"`
 		} `json:"data"`
@@ -499,8 +499,8 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			OneYear     *float64 "json:\"oneYear\""
 			TwoYear     *float64 "json:\"twoYear\""
 			ThreeYear   *float64 "json:\"threeYear\""
+			FourYear    *float64 `json:"fourYear"`
 			FiveYear    *float64 "json:\"fiveYear\""
-			YTD         *float64 "json:\"ytd\""
 			SharpeRatio *float64 "json:\"sharpeRatio\""
 			MaxDrawdown *float64 "json:\"maxDrawdown\""
 		}{
@@ -514,8 +514,8 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			OneYear:     Round(report.Yr1Returns),
 			TwoYear:     Round(report.Yr2Returns),
 			ThreeYear:   Round(report.Yr3Returns),
+			FourYear:    Round(report.Yr4Returns),
 			FiveYear:    Round(report.Yr5Returns),
-			YTD:         Round(report.OverAllReturns),
 			SharpeRatio: Round(fund.SharpeRatio3Yrs),
 			MaxDrawdown: Round(fund.MaxDrawdown3Yrs),
 		})
