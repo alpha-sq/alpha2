@@ -471,7 +471,7 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		if report == nil || report.AUM() == nil || *report.AUM() == 0 {
+		if report == nil || report.AUM() == nil || *report.AUM() < 25 {
 			continue
 		}
 
