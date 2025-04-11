@@ -1,4 +1,4 @@
-name: Deploy Go App via SSM SSH
+name: Deploy Go App
 
 on:
   push:
@@ -10,31 +10,20 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout Code
         uses: actions/checkout@v3
 
-      - name: Setup AWS CLI
-        uses: aws-actions/configure-aws-credentials@v2
-        with:
-          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region: ${{ secrets.AWS_REGION }}
-
-      - name: Install session-manager-plugin
-        run: |
-          curl "https://s3.amazonaws.com/session-manager-downloads/plugin/latest/ubuntu_64bit/session-manager-plugin.deb" -o "session-manager-plugin.deb"
-          sudo dpkg -i session-manager-plugin.deb
-
-      - name: Fix SSH Known Hosts Issue
+      - name: Set up SSH Key
         run: |
           mkdir -p ~/.ssh
-          echo "StrictHostKeyChecking no" >> ~/.ssh/config
+          echo "${{ secrets.EC2_SSH_PRIVATE_KEY }}" > ~/.ssh/id_rsa
+          chmod 600 ~/.ssh/id_rsa
+          ssh-keyscan -H ${{ secrets.EC2_HOST }} >> ~/.ssh/known_hosts
 
-      - name: SSH into EC2 via SSM and deploy
-        env:
-          INSTANCE_ID: ${{ secrets.INSTANCE_ID }}
+      - name: Deploy over SSH
         run: |
-          ssh -tt -o "ProxyCommand=aws ssm start-session --target %h --document-name AWS-StartSSHSession --parameters 'portNumber=22'" ec2-user@$INSTANCE_ID << 'EOF'
+          ssh ${{ secrets.EC2_HOST }} << 'EOF'
+            set -e
             cd /home/ec2-user/your-app-dir
             git pull origin main
             go build -o app
