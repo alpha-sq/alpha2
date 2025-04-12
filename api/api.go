@@ -25,7 +25,9 @@ func RunServer() {
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
-	jobs.Scheduler.Start(ctx)
+	if viper.GetBool("jobs.enable") {
+		jobs.Scheduler.Start(ctx)
+	}
 
 	// Create HTTP handlers
 	handlers := NewHTTPHandlers(jobs.Scheduler, db)
