@@ -4,12 +4,14 @@ import (
 	"alpha2/crawler"
 	"alpha2/jobs"
 	"context"
-	"log"
+	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/rs/zerolog/log"
+	"github.com/spf13/viper"
 )
 
 func init() {
@@ -55,8 +57,8 @@ func RunServer() {
 	})
 
 	// Start the HTTP server
-	log.Println("Starting server on :8080")
-	if err := http.ListenAndServe(":8080", r); err != nil {
-		log.Fatalf("Failed to start server: %v", err)
+	log.Info().Str("port", viper.GetString("server.port")).Msg("Starting server")
+	if err := http.ListenAndServe(fmt.Sprintf(":%s", viper.GetString("server.port")), r); err != nil {
+		log.Fatal().Err(err).Msg("Failed to start server")
 	}
 }
