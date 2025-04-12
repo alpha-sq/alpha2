@@ -26,6 +26,6 @@ jobs:
             set -e
             cd ~/alpha2
             git pull origin main
-            go build -o app
-            sudo systemctl restart go-app
+            go build -o bin/alpha2
+            sudo systemctl restart alpha2
           EOF
