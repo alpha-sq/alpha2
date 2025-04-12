@@ -4,6 +4,7 @@ Copyright © 2025 NAME HERE <EMAIL ADDRESS>
 package cmd
 
 import (
+	"alpha2/api"
 	"alpha2/crawler"
 	"alpha2/crawler/pmf"
 	"encoding/json"
@@ -36,16 +37,17 @@ var rootCmd = &cobra.Command{
 		return nil
 	},
 	Run: func(cmd *cobra.Command, args []string) {
-		if fromDate != "" && toDate != "" {
-			fromDate_, _ := time.Parse("2006-01-02", fromDate)
-			toDate_, _ := time.Parse("2006-01-02", toDate)
-			for forDate := fromDate_; forDate.After(toDate_); forDate = forDate.AddDate(0, -1, 0) {
-				runClawl(&forDate)
-			}
-		} else {
-			forDate, _ := time.Parse("2006-01-02", targetDate)
-			runClawl(&forDate)
-		}
+		// if fromDate != "" && toDate != "" {
+		// 	fromDate_, _ := time.Parse("2006-01-02", fromDate)
+		// 	toDate_, _ := time.Parse("2006-01-02", toDate)
+		// 	for forDate := fromDate_; forDate.After(toDate_); forDate = forDate.AddDate(0, -1, 0) {
+		// 		runClawl(&forDate)
+		// 	}
+		// } else {
+		// 	forDate, _ := time.Parse("2006-01-02", targetDate)
+		// 	runClawl(&forDate)
+		// }
+		api.RunServer()
 	},
 }
 
