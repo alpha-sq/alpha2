@@ -289,14 +289,21 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			Manager string   `json:"manager"`
 			AUM     *float64 `json:"aum"`
 
-			OneMonth    *float64 `json:"oneMonth"`
-			ThreeMonth  *float64 `json:"threeMonth"`
-			SixMonth    *float64 `json:"sixMonth"`
-			OneYear     *float64 `json:"oneYear"`
-			TwoYear     *float64 `json:"twoYear"`
-			ThreeYear   *float64 `json:"threeYear"`
-			FourYear    *float64 `json:"fourYear"`
-			FiveYear    *float64 `json:"fiveYear"`
+			OneMonth   *float64 `json:"oneMonth"`
+			ThreeMonth *float64 `json:"threeMonth"`
+			SixMonth   *float64 `json:"sixMonth"`
+			OneYear    *float64 `json:"oneYear"`
+			TwoYear    *float64 `json:"twoYear"`
+			ThreeYear  *float64 `json:"threeYear"`
+			FourYear   *float64 `json:"fourYear"`
+			FiveYear   *float64 `json:"fiveYear"`
+
+			LastYear       *float64 `json:"lastYear"`
+			SecondLastYear *float64 `json:"secondLastYear"`
+			ThirdLastYear  *float64 `json:"thirdLastYear"`
+			FourthLastYear *float64 `json:"fourthLastYear"`
+			FifthLastYear  *float64 `json:"fifthLastYear"`
+
 			SharpeRatio *float64 `json:"sharpeRatio"`
 			MaxDrawdown *float64 `json:"maxDrawdown"`
 		} `json:"data"`
@@ -471,17 +478,17 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 				break
 			}
 		}
-		if report == nil || report.AUM() == nil || *report.AUM() < 25 {
-			continue
-		}
+		// if report == nil || report.AUM() == nil || *report.AUM() < 25 {
+		// 	continue
+		// }
 
-		if Round(report.Month1Returns) == nil && report.Month3Returns == nil && report.Month6Returns == nil && report.Yr1Returns == nil {
-			continue
-		}
+		// if Round(report.Month1Returns) == nil && report.Month3Returns == nil && report.Month6Returns == nil && report.Yr1Returns == nil {
+		// 	continue
+		// }
 
-		if (Round(report.Month1Returns) != nil && *Round(report.Month1Returns) == 0) && (Round(report.Month3Returns) != nil && *Round(report.Month3Returns) == 0) && (Round(report.Month6Returns) != nil && *Round(report.Month6Returns) == 0) {
-			continue
-		}
+		// if (Round(report.Month1Returns) != nil && *Round(report.Month1Returns) == 0) && (Round(report.Month3Returns) != nil && *Round(report.Month3Returns) == 0) && (Round(report.Month6Returns) != nil && *Round(report.Month6Returns) == 0) {
+		// 	continue
+		// }
 
 		var manager string
 		if len(fund.FundManagers) != 0 {
@@ -495,20 +502,25 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 		}
 
 		resp.Data = append(resp.Data, struct {
-			ID          uint64   "json:\"id\""
-			Name        string   "json:\"schemeName\""
-			Manager     string   `json:"manager"`
-			AUM         *float64 "json:\"aum\""
-			OneMonth    *float64 `json:"oneMonth"`
-			ThreeMonth  *float64 "json:\"threeMonth\""
-			SixMonth    *float64 "json:\"sixMonth\""
-			OneYear     *float64 "json:\"oneYear\""
-			TwoYear     *float64 "json:\"twoYear\""
-			ThreeYear   *float64 "json:\"threeYear\""
-			FourYear    *float64 `json:"fourYear"`
-			FiveYear    *float64 "json:\"fiveYear\""
-			SharpeRatio *float64 "json:\"sharpeRatio\""
-			MaxDrawdown *float64 "json:\"maxDrawdown\""
+			ID             uint64   "json:\"id\""
+			Name           string   "json:\"schemeName\""
+			Manager        string   `json:"manager"`
+			AUM            *float64 "json:\"aum\""
+			OneMonth       *float64 `json:"oneMonth"`
+			ThreeMonth     *float64 "json:\"threeMonth\""
+			SixMonth       *float64 "json:\"sixMonth\""
+			OneYear        *float64 "json:\"oneYear\""
+			TwoYear        *float64 "json:\"twoYear\""
+			ThreeYear      *float64 "json:\"threeYear\""
+			FourYear       *float64 `json:"fourYear"`
+			FiveYear       *float64 "json:\"fiveYear\""
+			LastYear       *float64 `json:"lastYear"`
+			SecondLastYear *float64 `json:"secondLastYear"`
+			ThirdLastYear  *float64 `json:"thirdLastYear"`
+			FourthLastYear *float64 `json:"fourthLastYear"`
+			FifthLastYear  *float64 `json:"fifthLastYear"`
+			SharpeRatio    *float64 "json:\"sharpeRatio\""
+			MaxDrawdown    *float64 "json:\"maxDrawdown\""
 		}{
 			ID:          fund.ID,
 			Name:        ToTitleCase(fund.DisplayName()),
@@ -524,6 +536,12 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			FiveYear:    Round(report.Yr5Returns),
 			SharpeRatio: Round(fund.SharpeRatio3Yrs),
 			MaxDrawdown: Round(fund.MaxDrawdown3Yrs),
+
+			LastYear:       Round(computeReturns(report.Yr1Returns)),
+			SecondLastYear: Round(computeReturns2(report.Yr1Returns, report.Yr2Returns, 2)),
+			ThirdLastYear:  Round(computeReturns2(report.Yr2Returns, report.Yr3Returns, 3)),
+			FourthLastYear: Round(computeReturns2(report.Yr3Returns, report.Yr4Returns, 4)),
+			FifthLastYear:  Round(computeReturns2(report.Yr4Returns, report.Yr5Returns, 5)),
 		})
 	}
 
@@ -533,6 +551,26 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "Error encoding response", http.StatusInternalServerError)
 		return
 	}
+}
+
+func computeReturns(C13 *float64) *float64 {
+	if C13 == nil {
+		return nil
+	}
+
+	tt := ((1 + (*C13 / 100)) - 1) * 100
+
+	return &tt
+}
+func computeReturns2(r1, r2 *float64, yr int) *float64 {
+	if r1 == nil || r2 == nil {
+		return nil
+	}
+
+	a := 1 + *r2/100
+	b := 1 + *r1/100
+	result := ((math.Pow(a, float64(yr)) / math.Pow(b, float64(yr-1))) - 1) * 100
+	return &result
 }
 
 func Round(num *float64) *float64 {
