@@ -7,7 +7,6 @@ import (
 	"alpha2/crawler"
 	"alpha2/crawler/mf"
 	"alpha2/jobs"
-	"context"
 	"fmt"
 	"strconv"
 	"time"
@@ -29,9 +28,6 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		jobs.Init()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		jobs.Scheduler.Start(ctx)
 		db := crawler.Conn()
 
 		var funds []mf.MutualFundData
@@ -57,8 +53,6 @@ to quickly create a Cobra application.`,
 			}
 			return nil
 		})
-
-		jobs.Scheduler.Wait(ctx)
 	},
 }
 

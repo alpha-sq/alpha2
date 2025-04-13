@@ -6,7 +6,6 @@ package cmd
 import (
 	"alpha2/crawler/pmf"
 	"alpha2/jobs"
-	"context"
 	"time"
 
 	"github.com/reugn/go-quartz/quartz"
@@ -25,9 +24,6 @@ This application is a tool to generate the needed files
 to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		jobs.Init()
-		ctx, cancel := context.WithCancel(context.Background())
-		defer cancel()
-		jobs.Scheduler.Start(ctx)
 
 		jd := quartz.NewJobDetailWithOptions(&pmf.PMFInit{}, quartz.NewJobKeyWithGroup("PMFInit", "PMFInit"), &quartz.JobDetailOptions{
 			MaxRetries:    10,
