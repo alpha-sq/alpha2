@@ -23,10 +23,14 @@ func RunServer() {
 	db := crawler.Conn()
 	jobs.Init()
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
 	if viper.GetBool("jobs.enable") {
+		ctx, cancel := context.WithCancel(context.Background())
+		defer cancel()
 		jobs.Scheduler.Start(ctx)
+		log.Info().Msg("Jobs are enabled. Scheduler started.")
+	} else {
+		log.Info().Msg("Jobs are disabled. Set jobs.enable to true to enable job scheduling.")
+
 	}
 
 	// Create HTTP handlers
