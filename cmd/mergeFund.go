@@ -138,9 +138,10 @@ to quickly create a Cobra application.`,
 				report.OtherData["merged_id"] = strconv.FormatUint(report.FundID, 10)
 				report.OtherData["priority"] = "low"
 				report.FundID = fund.ID
+				report.ID = 0
 			})
 
-			err = db.Model(&crawler.FundReport{}).Save(duplicateFundReports).Error
+			err = db.Model(&crawler.FundReport{}).Create(duplicateFundReports).Error
 			if err != nil {
 				log.Error().Err(err).Str("fund", fund.Name).Msg("Error updating fund reports")
 				return err
