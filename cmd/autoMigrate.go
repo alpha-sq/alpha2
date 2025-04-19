@@ -49,6 +49,9 @@ var autoMigrateCmd = &cobra.Command{
 		if err = db.AutoMigrate(&jobs.ScheduledJob{}); err != nil {
 			log.Panic().Err(err).Msg("Error migrating CrawlerEvent")
 		}
+		if err = db.AutoMigrate(&crawler.Image{}); err != nil {
+			log.Panic().Err(err).Msg("Error migrating Image")
+		}
 	},
 }
 

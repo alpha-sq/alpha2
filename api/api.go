@@ -4,15 +4,26 @@ import (
 	"alpha2/crawler"
 	"alpha2/jobs"
 	"context"
+	"encoding/json"
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/jwtauth/v5"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/viper"
 )
+
+var tokenAuth *jwtauth.JWTAuth
+
+// var Secret string = viper.GetString("jwt.secret") // Replace <jwt-secret> with your secret key that is private to you.
+
+func init() {
+	tokenAuth = jwtauth.New("HS256", []byte("secet"), nil)
+}
 
 func init() {
 	middleware.DefaultLogger = middleware.RequestLogger(&LogFormatter{})
@@ -41,8 +52,8 @@ func RunServer() {
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 	r.Use(cors.Handler(cors.Options{
-		AllowedOrigins:   []string{"*"}, // Allow your Next.js frontend
-		AllowedMethods:   []string{"GET", "POST", "PUT", "DELETE", "OPTIONS"},
+		AllowedOrigins:   []string{"http://localhost:3000"}, // Allow your Next.js frontend
+		AllowedMethods:   []string{"GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"},
 		AllowedHeaders:   []string{"Accept", "Authorization", "Content-Type", "X-CSRF-Token"},
 		AllowCredentials: true,
 		MaxAge:           300, // Maximum value not ignored by browsers
@@ -52,7 +63,7 @@ func RunServer() {
 	r.Group(func(r chi.Router) {
 		r.Get("/jobs/upcoming", handlers.GetUpcomingJobs)
 		r.Get("/jobs/completed", handlers.GetCompletedJobs)
-		r.Post("/jobs", handlers.AddJob)
+		// r.Post("/jobs", handlers.AddJob)
 
 		r.Get("/funds", getAllFunds)
 		r.Get("/funds/explore", getExplorePMSData)
@@ -60,6 +71,56 @@ func RunServer() {
 		// r.Get("/funds/impact", getImpactData)
 		// r.Get("/fund/{fundID}/rolling-returns", getRollingReturns)
 		r.Get("/fund/{fundID}/discrete-returns", getDiscreteReturns)
+		r.Get("/image", getImageHandler)
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Post("/login", func(w http.ResponseWriter, r *http.Request) {
+			r.ParseForm()
+			userName := r.PostForm.Get("username")
+			userPassword := r.PostForm.Get("password")
+
+			if userName == "" || userPassword == "" {
+				http.Error(w, "Missing username or password.", http.StatusBadRequest)
+				return
+			}
+			if userName != viper.GetString("admin.username") || userPassword != viper.GetString("admin.password") {
+				http.Error(w, "invalid username or password.", http.StatusBadRequest)
+				return
+			}
+
+			token := MakeToken(userName)
+
+			http.SetCookie(w, &http.Cookie{
+				HttpOnly: true,
+				Expires:  time.Now().Add(7 * 24 * time.Hour),
+				SameSite: http.SameSiteLaxMode,
+				Path:     "/",
+				// Uncomment below for HTTPS:
+				// Secure: true,
+				Name:  "jwt", // Must be named "jwt" or else the token cannot be searched for by jwtauth.Verifier.
+				Value: token,
+			})
+
+			body := make(map[string]string)
+			body["token"] = token
+			err := json.NewEncoder(w).Encode(body)
+			if err != nil {
+				http.Error(w, err.Error(), http.StatusInternalServerError)
+				return
+			}
+		})
+
+	})
+
+	r.Group(func(r chi.Router) {
+		r.Use(jwtauth.Verifier(tokenAuth))
+		r.Use(jwtauth.Authenticator(tokenAuth))
+
+		r.Get("/admin/fund-house", getFundHouseList)
+		r.Patch("/admin/fund-house", updateFundHouse)
+
+		r.Post("/upload", uploadHandler)
 	})
 
 	// Start the HTTP server
@@ -67,4 +128,9 @@ func RunServer() {
 	if err := http.ListenAndServe(fmt.Sprintf(":%s", viper.GetString("server.port")), r); err != nil {
 		log.Fatal().Err(err).Msg("Failed to start server")
 	}
+}
+
+func MakeToken(name string) string {
+	_, tokenString, _ := tokenAuth.Encode(map[string]interface{}{"username": name})
+	return tokenString
 }

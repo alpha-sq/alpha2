@@ -143,3 +143,12 @@ func (j *JSONB) Scan(value interface{}) error {
 func (j JSONB) Value() (driver.Value, error) {
 	return json.Marshal(j) // Convert Go map to JSON before storing
 }
+
+type Image struct {
+	ID          uint `gorm:"primaryKey"`
+	Filename    string
+	Content     []byte `gorm:"type:bytea"` // Important for PostgreSQL
+	IsUnused    bool   `gorm:"not null;default:true"`
+	ContentType string
+	UploadedAt  time.Time
+}
