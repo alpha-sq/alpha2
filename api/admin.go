@@ -86,7 +86,7 @@ func getFundHouse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	var fundManager crawler.FundManager
-	err := db.Model(&crawler.FundManager{}).Where("id = ?", chi.URLParam(r, "ID")).Find(&fundManager).Error
+	err := db.Model(&crawler.FundManager{}).Preload("Managers").Where("id = ?", chi.URLParam(r, "ID")).Find(&fundManager).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
@@ -140,9 +140,10 @@ func updateFundHouse(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		err = tx.Save(&fundManager.Managers).Error
-		if err != nil {
-			return err
+		for _, manager := range fundHouse.Managers {
+			if err := tx.Save(manager).Error; err != nil {
+				return err
+			}
 		}
 
 		if fundHouse.LogoUrl != "" {
@@ -155,6 +156,7 @@ func updateFundHouse(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
 	}
 
 	w.WriteHeader(http.StatusOK)

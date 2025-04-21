@@ -33,7 +33,7 @@ type FundManager struct {
 
 type Manager struct {
 	ID            uint64 `gorm:"primarykey" json:"id"`
-	FundManagerID uint64 `json:"fund_house"`
+	FundManagerID uint64 `gorm:"<-:create" json:"fund_house"`
 	Name          string `json:"name"`
 	Title         string `json:"title"`
 	About         string `json:"about"`
