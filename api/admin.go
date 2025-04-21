@@ -10,6 +10,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/go-chi/chi/v5"
 	"gorm.io/gorm"
 )
 
@@ -74,6 +75,38 @@ func getFundHouseList(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+func getFundHouse(w http.ResponseWriter, r *http.Request) {
+	db := crawler.Conn()
+
+	if chi.URLParam(r, "ID") == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var fundManager crawler.FundManager
+	err := db.Model(&crawler.FundManager{}).Where("id = ?", chi.URLParam(r, "ID")).Find(&fundManager).Error
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+	fundHouse := FundHouse{
+		Name:        fundManager.RegistrationName(),
+		ID:          strconv.FormatUint(fundManager.ID, 10),
+		DisplayName: fundManager.OtherData["display_name"],
+		LogoUrl:     fundManager.OtherData["logo_url"],
+		Description: fundManager.OtherData["description"],
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(fundHouse)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+}
+
 func updateFundHouse(w http.ResponseWriter, r *http.Request) {
 	var fundHouse FundHouse
 	err := json.NewDecoder(r.Body).Decode(&fundHouse)
@@ -91,7 +124,9 @@ func updateFundHouse(w http.ResponseWriter, r *http.Request) {
 	}
 
 	fundManager.OtherData["display_name"] = fundHouse.DisplayName
-	fundManager.OtherData["logo_url"] = fundHouse.LogoUrl
+	if fundHouse.LogoUrl != "" {
+		fundManager.OtherData["logo_url"] = fundHouse.LogoUrl
+	}
 	fundManager.OtherData["description"] = fundHouse.Description
 
 	err = db.Transaction(func(tx *gorm.DB) error {
@@ -100,9 +135,11 @@ func updateFundHouse(w http.ResponseWriter, r *http.Request) {
 			return err
 		}
 
-		err = MarkImageAsUsed(fundHouse.LogoUrl, tx)
-		if err != nil {
-			return err
+		if fundHouse.LogoUrl != "" {
+			err = MarkImageAsUsed(fundHouse.LogoUrl, tx)
+			if err != nil {
+				return err
+			}
 		}
 		return nil
 	})

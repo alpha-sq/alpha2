@@ -118,6 +118,7 @@ func RunServer() {
 		r.Use(jwtauth.Authenticator(tokenAuth))
 
 		r.Get("/admin/fund-house", getFundHouseList)
+		r.Get("/admin/fund-house/{ID}", getFundHouse)
 		r.Patch("/admin/fund-house", updateFundHouse)
 
 		r.Post("/upload", uploadHandler)
