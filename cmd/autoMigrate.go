@@ -23,6 +23,9 @@ var autoMigrateCmd = &cobra.Command{
 		if err = db.AutoMigrate(&crawler.FundManager{}); err != nil {
 			log.Panic().Err(err).Msg("Error migrating FundManager")
 		}
+		if err = db.AutoMigrate(&crawler.Manager{}); err != nil {
+			log.Panic().Err(err).Msg("Error migrating Manager")
+		}
 		if err = db.AutoMigrate(&crawler.Fund{}); err != nil {
 			log.Panic().Err(err).Msg("Error migrating Fund")
 		}
