@@ -6,6 +6,8 @@ import (
 	"errors"
 	"strconv"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 type FundManager struct {
@@ -24,7 +26,24 @@ type FundManager struct {
 
 	OtherData JSONB `gorm:"type:jsonb"`
 
+	Managers []*Manager `json:"managers"`
+
 	Funds []*Fund `gorm:"many2many:fund_x_fund_managers" json:"funds"`
+}
+
+type Manager struct {
+	ID            uint64 `gorm:"primarykey" json:"id"`
+	FundManagerID uint64 `json:"fund_house"`
+	Name          string `json:"name"`
+	Title         string `json:"title"`
+	About         string `json:"about"`
+	Image         string `json:"image"`
+	Email         string `json:"email"`
+	Contact       string `json:"contact"`
+
+	CreatedAt time.Time
+	UpdatedAt time.Time
+	DeletedAt gorm.DeletedAt `gorm:"index"`
 }
 
 func (f *FundManager) RegistrationName() string {

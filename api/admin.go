@@ -15,11 +15,13 @@ import (
 )
 
 type FundHouse struct {
-	Name        string `json:"name"`
-	ID          string `json:"id"`
-	DisplayName string `json:"display_name"`
-	LogoUrl     string `json:"logo_url"`
-	Description string `json:"description"`
+	Name        string             `json:"name"`
+	ID          string             `json:"id"`
+	DisplayName string             `json:"display_name"`
+	LogoUrl     string             `json:"logo_url"`
+	Slug        string             `json:"slug"`
+	Description string             `json:"description"`
+	Managers    []*crawler.Manager `json:"managers"`
 }
 
 func getFundHouseList(w http.ResponseWriter, r *http.Request) {
@@ -96,6 +98,8 @@ func getFundHouse(w http.ResponseWriter, r *http.Request) {
 		DisplayName: fundManager.OtherData["display_name"],
 		LogoUrl:     fundManager.OtherData["logo_url"],
 		Description: fundManager.OtherData["description"],
+		Slug:        fundManager.OtherData["slug"],
+		Managers:    fundManager.Managers,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
@@ -117,7 +121,7 @@ func updateFundHouse(w http.ResponseWriter, r *http.Request) {
 
 	db := crawler.Conn()
 	fundManager := crawler.FundManager{}
-	err = db.First(&fundManager, fundHouse.ID).Error
+	err = db.Model(&crawler.FundManager{}).Preload("Managers").First(&fundManager, fundHouse.ID).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusNotFound)
 		return
@@ -128,9 +132,15 @@ func updateFundHouse(w http.ResponseWriter, r *http.Request) {
 		fundManager.OtherData["logo_url"] = fundHouse.LogoUrl
 	}
 	fundManager.OtherData["description"] = fundHouse.Description
+	fundManager.OtherData["slug"] = fundHouse.Slug
 
 	err = db.Transaction(func(tx *gorm.DB) error {
 		err = tx.Save(&fundManager).Error
+		if err != nil {
+			return err
+		}
+
+		err = tx.Save(&fundManager.Managers).Error
 		if err != nil {
 			return err
 		}
