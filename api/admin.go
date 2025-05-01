@@ -11,17 +11,22 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/samber/lo"
 	"gorm.io/gorm"
 )
 
 type FundHouse struct {
-	Name        string             `json:"name"`
-	ID          string             `json:"id"`
-	DisplayName string             `json:"display_name"`
-	LogoUrl     string             `json:"logo_url"`
-	Slug        string             `json:"slug"`
-	Description string             `json:"description"`
-	Managers    []*crawler.Manager `json:"managers"`
+	Name         string             `json:"name"`
+	ID           string             `json:"id"`
+	DisplayName  string             `json:"display_name"`
+	LogoUrl      string             `json:"logo_url"`
+	Slug         string             `json:"slug"`
+	Description  string             `json:"description"`
+	Managers     []*crawler.Manager `json:"managers"`
+	AUM          *float64           `json:"aum"`
+	TotalClients *float64           `json:"total_clients"`
+	Strategies   int64              `json:"strategies"`
+	LastUpdated  string             `json:"last_updated"`
 }
 
 func getFundHouseList(w http.ResponseWriter, r *http.Request) {
@@ -80,26 +85,45 @@ func getFundHouseList(w http.ResponseWriter, r *http.Request) {
 func getFundHouse(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
 
-	if chi.URLParam(r, "ID") == "" {
+	if chi.URLParam(r, "ID") == "" && chi.URLParam(r, "slug") == "" {
 		http.Error(w, "ID is required", http.StatusBadRequest)
 		return
 	}
 
 	var fundManager crawler.FundManager
-	err := db.Model(&crawler.FundManager{}).Preload("Managers").Where("id = ?", chi.URLParam(r, "ID")).Find(&fundManager).Error
+	tx := db.Model(&crawler.FundManager{}).Preload("Managers")
+	if chi.URLParam(r, "ID") != "" {
+		tx.Where("id = ?", chi.URLParam(r, "ID"))
+	} else {
+		tx.Where("other_data->>'slug' = ?", chi.URLParam(r, "slug")).Preload("Funds")
+	}
+	err := tx.Find(&fundManager).Error
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
+	var report crawler.FundReport
+	if len(fundManager.Funds) != 0 {
+		db.Model(&crawler.FundReport{}).
+			Order("report_date DESC").
+			Where("fund_id in ?", lo.Map(fundManager.Funds, func(fund *crawler.Fund, _ int) uint64 {
+				return (fund.ID)
+			})).
+			First(&report)
+	}
 
 	fundHouse := FundHouse{
-		Name:        fundManager.RegistrationName(),
-		ID:          strconv.FormatUint(fundManager.ID, 10),
-		DisplayName: fundManager.OtherData["display_name"],
-		LogoUrl:     fundManager.OtherData["logo_url"],
-		Description: fundManager.OtherData["description"],
-		Slug:        fundManager.OtherData["slug"],
-		Managers:    fundManager.Managers,
+		Name:         fundManager.RegistrationName(),
+		ID:           strconv.FormatUint(fundManager.ID, 10),
+		DisplayName:  fundManager.OtherData["display_name"],
+		LogoUrl:      fundManager.OtherData["logo_url"],
+		Description:  fundManager.OtherData["description"],
+		Slug:         fundManager.OtherData["slug"],
+		Managers:     fundManager.Managers,
+		AUM:          fundManager.TotalAUM,
+		TotalClients: fundManager.TotalNoOfClient,
+		Strategies:   int64(len(fundManager.Funds)),
+		LastUpdated:  report.ReportDate.Format(time.RFC3339),
 	}
 
 	w.Header().Set("Content-Type", "application/json")

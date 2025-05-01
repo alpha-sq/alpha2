@@ -72,6 +72,8 @@ func RunServer() {
 		// r.Get("/fund/{fundID}/rolling-returns", getRollingReturns)
 		r.Get("/fund/{fundID}/discrete-returns", getDiscreteReturns)
 		r.Get("/image", getImageHandler)
+		r.Get("/fund-house/{slug}", getFundHouse)
+		r.Get("/fund-house/aum/{slug}", getAUMChart)
 	})
 
 	r.Group(func(r chi.Router) {

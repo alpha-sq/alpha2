@@ -24,6 +24,11 @@ type LineGraphData struct {
 	Returns    *float64   `json:"returns"`
 }
 
+type AUMChart struct {
+	ReportDate *time.Time `json:"report_date"`
+	AUM        *float64   `json:"aum"`
+}
+
 // Handler to get trailing returns
 func getTrailingReturns(w http.ResponseWriter, r *http.Request) {
 	db := crawler.Conn()
@@ -355,6 +360,18 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 	if filter != "" && filter != "All Funds" {
 		tx.Where("funds.other_data != 'null' and funds.other_data->>'label' in ?", getFundsByFilter(filter))
 	}
+	fundHouseID := r.URL.Query().Get("fund_house_id")
+	if fundHouseID != "" {
+		var funds []crawler.FundXFundManagers
+		id, _ := strconv.ParseUint(fundHouseID, 10, 64)
+		db.Model(&crawler.FundXFundManagers{}).Where(&crawler.FundXFundManagers{
+			FundManagerID: id,
+		}).Find(&funds)
+		tx.Where("funds.id in ?", lo.Map(funds, func(fund crawler.FundXFundManagers, _ int) uint64 {
+			return fund.FundID
+		}))
+	}
+
 	if fundname != "" {
 		tx.Where("similarity(funds.name, ?) > 0.1", fundname)
 	}
@@ -610,4 +627,47 @@ func getFundsByFilter(filter string) []string {
 	})
 
 	return funds
+}
+
+func getAUMChart(w http.ResponseWriter, r *http.Request) {
+	db := crawler.Conn()
+	slug := chi.URLParam(r, "slug")
+	if slug == "" {
+		http.Error(w, "ID is required", http.StatusBadRequest)
+		return
+	}
+
+	var fundManager crawler.FundManager
+	err := db.Model(&crawler.FundManager{}).Where("other_data->>'slug' = ?", slug).Select("id").Preload("Funds").First(&fundManager).Error
+	if err != nil {
+		if err == gorm.ErrRecordNotFound {
+			http.Error(w, "Fund manager not found", http.StatusNotFound)
+			return
+		}
+	}
+
+	var data []AUMChart
+	if len(fundManager.Funds) == 0 {
+		w.Header().Set("Content-Type", "application/json")
+		if err := json.NewEncoder(w).Encode(data); err != nil {
+			http.Error(w, "Error encoding response", http.StatusInternalServerError)
+			return
+		}
+		return
+	}
+
+	err = db.Model(&crawler.FundReport{}).Select("id", "report_date", "other_data->>'AUM' as aum").Where(&crawler.FundReport{
+		FundID: fundManager.Funds[0].ID,
+	}).Order("report_date").Find(&data).Error
+
+	if err != nil {
+		http.Error(w, "Error fetching AUM data", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(data); err != nil {
+		http.Error(w, "Error encoding response", http.StatusInternalServerError)
+		return
+	}
 }
