@@ -311,6 +311,8 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 
 			SharpeRatio *float64 `json:"sharpeRatio"`
 			MaxDrawdown *float64 `json:"maxDrawdown"`
+
+			Slug string `json:"slug"`
 		} `json:"data"`
 
 		Total int64 `json:"total"`
@@ -518,6 +520,11 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			fund.MaxDrawdown3Yrs = &t
 		}
 
+		var fundManagerSlug string
+		if len(fund.FundManagers) > 0 {
+			fundManagerSlug = fund.FundManagers[0].OtherData["slug"]
+		}
+
 		resp.Data = append(resp.Data, struct {
 			ID             uint64   "json:\"id\""
 			Name           string   "json:\"schemeName\""
@@ -538,6 +545,8 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			FifthLastYear  *float64 `json:"fifthLastYear"`
 			SharpeRatio    *float64 "json:\"sharpeRatio\""
 			MaxDrawdown    *float64 "json:\"maxDrawdown\""
+
+			Slug string `json:"slug"`
 		}{
 			ID:          fund.ID,
 			Name:        ToTitleCase(fund.DisplayName()),
@@ -559,6 +568,8 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			ThirdLastYear:  Round(computeReturns2(report.Yr2Returns, report.Yr3Returns, 3)),
 			FourthLastYear: Round(computeReturns2(report.Yr3Returns, report.Yr4Returns, 4)),
 			FifthLastYear:  Round(computeReturns2(report.Yr4Returns, report.Yr5Returns, 5)),
+
+			Slug: fundManagerSlug,
 		})
 	}
 
