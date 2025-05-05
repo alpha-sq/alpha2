@@ -102,14 +102,19 @@ func getFundHouse(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
 		return
 	}
-	var report crawler.FundReport
+	var lastUpdated string
 	if len(fundManager.Funds) != 0 {
+		var report crawler.FundReport
 		db.Model(&crawler.FundReport{}).
 			Order("report_date DESC").
 			Where("fund_id in ?", lo.Map(fundManager.Funds, func(fund *crawler.Fund, _ int) uint64 {
 				return (fund.ID)
 			})).
 			First(&report)
+
+		if report.ReportDate != nil {
+			lastUpdated = report.ReportDate.Format(time.RFC3339)
+		}
 	}
 
 	fundHouse := FundHouse{
@@ -123,7 +128,7 @@ func getFundHouse(w http.ResponseWriter, r *http.Request) {
 		AUM:          fundManager.TotalAUM,
 		TotalClients: fundManager.TotalNoOfClient,
 		Strategies:   int64(len(fundManager.Funds)),
-		LastUpdated:  report.ReportDate.Format(time.RFC3339),
+		LastUpdated:  lastUpdated,
 	}
 
 	w.Header().Set("Content-Type", "application/json")
