@@ -40,16 +40,42 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 		db := crawler.Conn()
 		db.Transaction(func(tx *gorm.DB) error {
 			for _, fund := range funds {
-				tx := db.Model(&crawler.Fund{}).Clauses(clause.OnConflict{
-					DoNothing: true,
-					// DoUpdates: clause.AssignmentColumns([]string{"name", "email", "contact", "address", "total_no_of_client", "other_data", "total_aum"}),
-				}).Create(fund)
+				tx := db.Model(&crawler.FundManager{}).Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "id"}},
+					DoUpdates: clause.AssignmentColumns([]string{"name", "email", "contact", "address", "total_no_of_client", "other_data", "total_aum"}),
+				}).Omit("Funds").Create(fund.FundManagers[0])
 				if tx.Error != nil {
 					jsonfund, _ := json.Marshal(fund)
 					log.Error().Err(tx.Error).RawJSON("fund", jsonfund).Msg("Error while saving funds")
 					err = tx.Error
 					return tx.Error
 				}
+
+				tx = db.Model(&crawler.Fund{}).Clauses(clause.OnConflict{
+					Columns:   []clause.Column{{Name: "id"}},
+					UpdateAll: true,
+				}).Omit("FundReports").Create(fund)
+				if tx.Error != nil {
+					jsonfund, _ := json.Marshal(fund)
+					log.Error().Err(tx.Error).RawJSON("fund", jsonfund).Msg("Error while saving funds")
+					err = tx.Error
+					return tx.Error
+				}
+
+				for _, fundReport := range fund.FundReports {
+					fundReport.FundID = fund.ID
+					tx = db.Model(&crawler.FundReport{}).Clauses(clause.OnConflict{
+						Columns:   []clause.Column{{Name: "fund_id"}, {Name: "report_date"}},
+						UpdateAll: true,
+					}).Create(fundReport)
+					if tx.Error != nil {
+						jsonfund, _ := json.Marshal(fund)
+						log.Error().Err(tx.Error).RawJSON("fund", jsonfund).Msg("Error while saving funds")
+						err = tx.Error
+						return tx.Error
+					}
+				}
+
 			}
 			nxtDate := forDate.AddDate(0, 1, 0)
 
@@ -59,7 +85,7 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 			if nxtDate.Before(now) {
 				triggerDur = time.Second * 1
 			} else {
-				triggerDur = time.Until(GetFirstDayOfNextMonth())
+				triggerDur = time.Until(NextTimeToRunJob())
 			}
 
 			job := &CrawlPMFFunds{
@@ -99,12 +125,12 @@ func (j *CrawlPMFFunds) Description() string {
 	return fmt.Sprintf("%s%s%s", j.UID, quartz.Sep, j.ForDate)
 }
 
-func GetFirstDayOfNextMonth() time.Time {
+func NextTimeToRunJob() time.Time {
 	// Get the current time
 	now := time.Now()
 
 	// Calculate the first day of the current month
-	firstDayOfCurrentMonth := time.Date(now.Year(), now.Month(), 1, 0, 0, 0, 0, now.Location())
+	firstDayOfCurrentMonth := time.Date(now.Year(), now.Month(), 21, 0, 0, 0, 0, now.Location())
 
 	// Add one month to get the first day of the next month
 	firstDayOfNextMonth := firstDayOfCurrentMonth.AddDate(0, 1, 0)

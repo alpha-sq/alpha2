@@ -98,9 +98,9 @@ func (f *Fund) DisplayName() string {
 
 type FundReport struct {
 	ID     uint64
-	FundID uint64 `json:"fund_id"`
+	FundID uint64 `json:"fund_id" gorm:"uniqueIndex:idx_report_date_fund_id"`
 
-	ReportDate *time.Time
+	ReportDate *time.Time `gorm:"uniqueIndex:idx_report_date_fund_id"`
 
 	Month1Returns *float64 `json:"1_month_return"`
 	Month3Returns *float64 `json:"3_month_return"`
