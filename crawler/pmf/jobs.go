@@ -4,8 +4,10 @@ import (
 	"alpha2/crawler"
 	"alpha2/jobs"
 	"context"
+	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"math/big"
 	"strings"
 	"time"
 
@@ -93,7 +95,7 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 				ForDate: nxtDate.Format(time.DateOnly),
 			}
 
-			key := fmt.Sprintf("%s-%s", j.UID, nxtDate.Format(time.DateOnly))
+			key := fmt.Sprintf("%s-%s-%s", j.UID, nxtDate.Format(time.DateOnly), RandomString(3))
 			jobDetail := quartz.NewJobDetailWithOptions(
 				job, quartz.NewJobKeyWithGroup(key, "CrawlPMFFunds"),
 				&quartz.JobDetailOptions{
@@ -148,7 +150,7 @@ func (j *PMFInit) Execute(ctx context.Context) (err error) {
 			ForDate: "2021-01-01",
 		}
 
-		key := fmt.Sprintf("%s-%s", job.UID, job.ForDate)
+		key := fmt.Sprintf("%s-%s-%s", job.UID, job.ForDate, RandomString(3))
 		jobDetail := quartz.NewJobDetailWithOptions(
 			job, quartz.NewJobKeyWithGroup(key, "CrawlPMFFunds"),
 			&quartz.JobDetailOptions{
@@ -171,4 +173,18 @@ func (j *PMFInit) SetDescription(s string) {
 
 func (p *PMFInit) Description() string {
 	return "PMFInit"
+}
+
+const charset = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+
+func RandomString(length int) string {
+	result := make([]byte, length)
+	for i := range result {
+		num, err := rand.Int(rand.Reader, big.NewInt(int64(len(charset))))
+		if err != nil {
+			return ""
+		}
+		result[i] = charset[num.Int64()]
+	}
+	return string(result)
 }
