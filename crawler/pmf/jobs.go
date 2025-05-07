@@ -55,7 +55,7 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 
 				tx = db.Model(&crawler.Fund{}).Clauses(clause.OnConflict{
 					Columns:   []clause.Column{{Name: "id"}},
-					UpdateAll: true,
+					DoNothing: true,
 				}).Omit("FundReports").Create(fund)
 				if tx.Error != nil {
 					jsonfund, _ := json.Marshal(fund)
