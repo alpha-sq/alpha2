@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"math/big"
-	"strings"
 	"time"
 
 	"github.com/reugn/go-quartz/quartz"
@@ -27,8 +26,9 @@ func init() {
 }
 
 type CrawlPMFFunds struct {
-	UID     string
-	ForDate string
+	UID      string
+	ForDate  string
+	SkipNext bool
 }
 
 func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
@@ -42,9 +42,18 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 		db := crawler.Conn()
 		db.Transaction(func(tx *gorm.DB) error {
 			for _, fund := range funds {
+				fund.FundManagers[0].RefreshedDate = &forDate
+
 				tx := db.Model(&crawler.FundManager{}).Clauses(clause.OnConflict{
-					Columns:   []clause.Column{{Name: "id"}},
-					DoUpdates: clause.AssignmentColumns([]string{"name", "email", "contact", "address", "total_no_of_client", "other_data", "total_aum"}),
+					Columns: []clause.Column{{Name: "id"}},
+					Where: clause.Where{Exprs: []clause.Expression{
+						clause.And(
+							clause.Eq{Column: "fund_managers.id", Value: fund.FundManagers[0].ID},
+							clause.Lt{Column: "fund_managers.refreshed_date", Value: forDate},
+						),
+					}},
+					DoUpdates: clause.AssignmentColumns([]string{"name", "email", "contact", "address", "total_no_of_client", "other_data", "total_aum",
+						"refreshed_date"}),
 				}).Omit("Funds").Create(fund.FundManagers[0])
 				if tx.Error != nil {
 					jsonfund, _ := json.Marshal(fund)
@@ -79,6 +88,11 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 				}
 
 			}
+
+			if j.SkipNext {
+				return nil
+			}
+
 			nxtDate := forDate.AddDate(0, 1, 0)
 
 			var triggerDur time.Duration
@@ -119,12 +133,20 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 }
 
 func (j *CrawlPMFFunds) SetDescription(s string) {
-	r := strings.Split(s, quartz.Sep)
-	j.UID = r[0]
-	j.ForDate = r[1]
+	err := json.Unmarshal([]byte(s), j)
+	if err != nil {
+		log.Error().Err(err).Msg("Error while unmarshalling job")
+		return
+	}
 }
+
 func (j *CrawlPMFFunds) Description() string {
-	return fmt.Sprintf("%s%s%s", j.UID, quartz.Sep, j.ForDate)
+	data, err := json.Marshal(j)
+	if err != nil {
+		log.Error().Err(err).Msg("Error while marshalling job")
+		return ""
+	}
+	return string(data)
 }
 
 func NextTimeToRunJob() time.Time {

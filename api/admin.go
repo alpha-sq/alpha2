@@ -2,6 +2,8 @@ package api
 
 import (
 	"alpha2/crawler"
+	"alpha2/crawler/pmf"
+	"alpha2/jobs"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -11,6 +13,8 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/reugn/go-quartz/quartz"
+	"github.com/rs/zerolog/log"
 	"github.com/samber/lo"
 	"gorm.io/gorm"
 )
@@ -256,4 +260,146 @@ func MarkImageAsUsed(url string, db *gorm.DB) error {
 	}
 	image.IsUnused = false
 	return db.Save(&image).Error
+}
+
+type Fund struct {
+	Name        string  `json:"name"`
+	ID          string  `json:"id"`
+	DisplayName string  `json:"display_name"`
+	IsHidden    bool    `json:"is_hidden"`
+	MergedWith  *string `json:"merged_with"`
+}
+
+func getFundsListByFundHouse(w http.ResponseWriter, r *http.Request) {
+	if chi.URLParam(r, "fund_house_id") == "" {
+		http.Error(w, "fund_house_id is required", http.StatusBadRequest)
+		return
+	}
+	fundHouseID := chi.URLParam(r, "fund_house_id")
+	db := crawler.Conn()
+
+	fund := &crawler.FundManager{}
+	err := db.Model(&crawler.FundManager{}).Where("id = ?", fundHouseID).Preload("Funds").First(fund).Error
+	if err != nil {
+		http.Error(w, "error during fetching funds", http.StatusBadRequest)
+		return
+	}
+
+	apiData := make([]Fund, len(fund.Funds))
+	for i, fund := range fund.Funds {
+
+		var mergedWith *string
+		if fund.OtherData["original_id"] != "" {
+			mergedWith = lo.ToPtr(fund.OtherData["original_id"])
+			mergeID, err := strconv.ParseUint(*mergedWith, 10, 64)
+			if err != nil {
+				http.Error(w, "error during parsing merged fund ID", http.StatusBadRequest)
+				return
+			}
+
+			if mergeID != fund.ID {
+
+				mergedFund := &crawler.Fund{}
+				if err = db.Find(&mergedFund, mergeID).Error; err != nil {
+					http.Error(w, "error during fetching merged fund", http.StatusBadRequest)
+					return
+				}
+
+				mergedWith = lo.ToPtr(mergedFund.Name)
+			} else {
+				mergedWith = nil
+			}
+		}
+
+		apiData[i] = Fund{
+			Name:        fund.Name,
+			ID:          strconv.FormatUint(fund.ID, 10),
+			DisplayName: fund.DisplayName(),
+			IsHidden:    fund.IsHidden,
+			MergedWith:  mergedWith,
+		}
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(http.StatusOK)
+	err = json.NewEncoder(w).Encode(apiData)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusInternalServerError)
+		return
+	}
+
+}
+
+func reFetchReport(w http.ResponseWriter, r *http.Request) {
+	if chi.URLParam(r, "fund_house_id") == "" {
+		log.Error().Msg("fund_house_id is required")
+		http.Error(w, "fund_house_id is required", http.StatusBadRequest)
+		return
+	}
+	fundHouseID := chi.URLParam(r, "fund_house_id")
+	db := crawler.Conn()
+
+	fundHouse := &crawler.FundManager{}
+	err := db.Model(&crawler.FundManager{}).Where("id = ?", fundHouseID).First(fundHouse).Error
+	if err != nil {
+		log.Error().Err(err).Msg("error during fetching fund house")
+		http.Error(w, "error during fetching fund house", http.StatusBadRequest)
+		return
+	}
+
+	UID := fundHouse.OtherData["UID"]
+	data := struct {
+		StartDate string `json:"from"`
+		EndDate   string `json:"to"`
+	}{}
+	err = json.NewDecoder(r.Body).Decode(&data)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	startDate, err := time.Parse(time.RFC3339, data.StartDate)
+	if err != nil {
+
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+	endDate, err := time.Parse(time.RFC3339, data.EndDate)
+	if err != nil {
+		http.Error(w, err.Error(), http.StatusBadRequest)
+		return
+	}
+
+	if endDate.After(time.Now()) {
+		http.Error(w, "end is future date", http.StatusBadRequest)
+		return
+	}
+
+	if startDate.Before(time.Date(2018, 1, 1, 0, 0, 0, 0, time.UTC)) {
+		http.Error(w, "start date is before 2018", http.StatusBadRequest)
+		return
+	}
+
+	for startDate.Before(endDate) {
+		forDate := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, time.UTC)
+
+		job := &pmf.CrawlPMFFunds{
+			UID:      UID,
+			ForDate:  forDate.Format(time.DateOnly),
+			SkipNext: true,
+		}
+		randJobID := lo.RandomString(10, []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+		jd := quartz.NewJobDetail(job, quartz.NewJobKeyWithGroup(randJobID, "CrawlPMFFunds"))
+		t := quartz.NewRunOnceTrigger(time.Second * 5)
+		err = jobs.Scheduler.ScheduleJob(jd, t)
+		if err != nil {
+			log.Error().Err(err).Msg("Error while scheduling job")
+			http.Error(w, err.Error(), http.StatusBadRequest)
+			return
+		}
+
+		startDate = time.Date(startDate.Year(), startDate.Month()+1, 1, 0, 0, 0, 0, time.UTC)
+	}
+
+	w.WriteHeader(http.StatusOK)
 }

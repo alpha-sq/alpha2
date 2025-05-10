@@ -123,6 +123,9 @@ func RunServer() {
 		r.Get("/admin/fund-house/{ID}", getFundHouse)
 		r.Patch("/admin/fund-house", updateFundHouse)
 
+		r.Get("/admin/fund-house/{fund_house_id}/funds", getFundsListByFundHouse)
+		r.Post("/admin/fund-house/{fund_house_id}/action/refetch-reports", reFetchReport)
+
 		r.Post("/upload", uploadHandler)
 	})
 

@@ -24,6 +24,8 @@ type FundManager struct {
 	TotalNoOfClient *float64
 	TotalAUM        *float64
 
+	RefreshedDate *time.Time
+
 	OtherData JSONB `gorm:"type:jsonb"`
 
 	Managers []*Manager `json:"managers"`
