@@ -90,7 +90,7 @@ func (j *CrawlPMFFunds) Execute(ctx context.Context) (err error) {
 				err = ScheduleDataConsistencyJobIsNotPresent(fund.FundManagers[0].ID)
 				if err != nil {
 					jsonfund, _ := json.Marshal(fund)
-					log.Error().Err(err).RawJSON("fund", jsonfund).Msg("Error while scheduling job")
+					log.Error().Err(err).RawJSON("fund", jsonfund).Msg("Error while scheduling PMSDataConsistency job")
 					return err
 				}
 			}

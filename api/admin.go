@@ -393,7 +393,7 @@ func reFetchReport(w http.ResponseWriter, r *http.Request) {
 		t := quartz.NewRunOnceTrigger(time.Second * 5)
 		err = jobs.Scheduler.ScheduleJob(jd, t)
 		if err != nil {
-			log.Error().Err(err).Msg("Error while scheduling job")
+			log.Error().Err(err).Msg("Error while refetch scheduling job")
 			http.Error(w, err.Error(), http.StatusBadRequest)
 			return
 		}

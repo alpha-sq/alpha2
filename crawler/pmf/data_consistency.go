@@ -291,7 +291,6 @@ func ScheduleDataConsistencyJobIsNotPresent(fundHouseID uint64) error {
 			log.Warn().Uint64("fund_house_id", fundHouseID).Msg("PMSDataConsistencyJob alredy present for fund house")
 			return nil
 		}
-		log.Error().Err(err).Msg("Error while scheduling job")
 		return err
 	}
 	return nil
