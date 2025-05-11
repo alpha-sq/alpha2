@@ -25,7 +25,7 @@ to quickly create a Cobra application.`,
 	Run: func(cmd *cobra.Command, args []string) {
 		jobs.Init()
 
-		jd := quartz.NewJobDetailWithOptions(&pmf.PMFInit{}, quartz.NewJobKeyWithGroup("PMFInit 1", "PMFInit"), &quartz.JobDetailOptions{
+		jd := quartz.NewJobDetailWithOptions(&pmf.PMFInit{}, quartz.NewJobKeyWithGroup("PMFInit 2", "PMFInit"), &quartz.JobDetailOptions{
 			MaxRetries:    10,
 			RetryInterval: time.Minute * 5,
 			Replace:       false,
