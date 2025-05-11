@@ -12,7 +12,6 @@ import (
 	"strconv"
 
 	"github.com/rs/zerolog/log"
-	"github.com/samber/lo"
 	"github.com/spf13/cobra"
 	"gorm.io/gorm"
 )
@@ -106,54 +105,54 @@ to quickly create a Cobra application.`,
 			}
 		}
 
-		funds := []crawler.Fund{}
-		err = db.Where(&crawler.Fund{IsHidden: false, Type: "PMF"}).FindInBatches(&funds, 1, func(tx *gorm.DB, batch int) error {
+		// funds := []crawler.Fund{}
+		// err = db.Where(&crawler.Fund{IsHidden: false, Type: "PMF"}).FindInBatches(&funds, 1, func(tx *gorm.DB, batch int) error {
 
-			fund := funds[0]
-			duplicatefunds := []crawler.Fund{}
-			err := tx.Where("other_data->>'original_id' = ?", strconv.FormatUint(fund.ID, 10)).Find(&duplicatefunds).Error
-			if err != nil {
-				log.Error().Err(err).Str("fund", fund.Name).Msg("Error finding duplicate funds")
-				return err
-			}
+		// 	fund := funds[0]
+		// 	duplicatefunds := []crawler.Fund{}
+		// 	err := tx.Where("other_data->>'original_id' = ?", strconv.FormatUint(fund.ID, 10)).Find(&duplicatefunds).Error
+		// 	if err != nil {
+		// 		log.Error().Err(err).Str("fund", fund.Name).Msg("Error finding duplicate funds")
+		// 		return err
+		// 	}
 
-			if len(duplicatefunds) == 0 {
-				log.Info().Str("fund", fund.Name).Msg("No duplicate funds found")
-				return nil
-			}
+		// 	if len(duplicatefunds) == 0 {
+		// 		log.Info().Str("fund", fund.Name).Msg("No duplicate funds found")
+		// 		return nil
+		// 	}
 
-			log.Info().Str("fund", fund.Name).Msg("Duplicate funds found")
+		// 	log.Info().Str("fund", fund.Name).Msg("Duplicate funds found")
 
-			duplicateFundReports := []crawler.FundReport{}
-			duplicateFundIDs := lo.Map(duplicatefunds, func(fund crawler.Fund, index int) uint64 {
-				return fund.ID
-			})
-			tx.Where("fund_id in ?", duplicateFundIDs).Find(&duplicateFundReports)
-			if len(duplicateFundReports) == 0 {
-				log.Info().Str("fund", fund.Name).Msg("No duplicate fund reports found")
-				return nil
-			}
+		// 	duplicateFundReports := []crawler.FundReport{}
+		// 	duplicateFundIDs := lo.Map(duplicatefunds, func(fund crawler.Fund, index int) uint64 {
+		// 		return fund.ID
+		// 	})
+		// 	tx.Where("fund_id in ?", duplicateFundIDs).Find(&duplicateFundReports)
+		// 	if len(duplicateFundReports) == 0 {
+		// 		log.Info().Str("fund", fund.Name).Msg("No duplicate fund reports found")
+		// 		return nil
+		// 	}
 
-			lo.ForEach(duplicateFundReports, func(report crawler.FundReport, index int) {
-				report.OtherData["merged_id"] = strconv.FormatUint(report.FundID, 10)
-				report.OtherData["priority"] = "low"
-				report.FundID = fund.ID
-				report.ID = 0
-			})
+		// 	lo.ForEach(duplicateFundReports, func(report crawler.FundReport, index int) {
+		// 		report.OtherData["merged_id"] = strconv.FormatUint(report.FundID, 10)
+		// 		report.OtherData["priority"] = "low"
+		// 		report.FundID = fund.ID
+		// 		report.ID = 0
+		// 	})
 
-			err = db.Model(&crawler.FundReport{}).Create(duplicateFundReports).Error
-			if err != nil {
-				log.Error().Err(err).Str("fund", fund.Name).Msg("Error updating fund reports")
-				return err
-			}
+		// 	err = db.Model(&crawler.FundReport{}).Create(duplicateFundReports).Error
+		// 	if err != nil {
+		// 		log.Error().Err(err).Str("fund", fund.Name).Msg("Error updating fund reports")
+		// 		return err
+		// 	}
 
-			return nil
-		}).Error
+		// 	return nil
+		// }).Error
 
-		if err != nil {
-			log.Error().Err(err).Msg("Error finding funds")
-			return
-		}
+		// if err != nil {
+		// 	log.Error().Err(err).Msg("Error finding funds")
+		// 	return
+		// }
 
 		log.Info().Msg("Done merging funds")
 	},
