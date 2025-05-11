@@ -64,7 +64,7 @@ func (gq *GormJobQueue) Push(job quartz.ScheduledJob) error {
 			// Update the existing job
 			return gq.db.Model(&existingJob).Updates(scheduledJob).Error
 		}
-		return errors.New("job already exists")
+		return quartz.ErrJobAlreadyExists
 	}
 
 	// Insert the new job
