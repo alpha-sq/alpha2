@@ -97,6 +97,16 @@ func (f *Fund) DisplayName() string {
 	}
 	return label
 }
+func (f *Fund) OptDisplayName() string {
+	if f.OtherData == nil {
+		return ""
+	}
+	label, ok := f.OtherData["label"]
+	if !ok {
+		return ""
+	}
+	return label
+}
 
 type FundReport struct {
 	ID     uint64

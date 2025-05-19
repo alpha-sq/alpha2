@@ -44,6 +44,21 @@ func getFundHouseList(w http.ResponseWriter, r *http.Request) {
 		page = "1"
 	}
 
+	var fundHouseIDs []uint64
+	isUnverified := r.URL.Query().Get("unverified") == "true"
+	if isUnverified {
+		funds := []*crawler.Fund{}
+		err := db.Model(&crawler.Fund{}).Where("type = ? and (other_data = 'null' or other_data -> 'label' is null)", "PMF").Preload("FundManagers").Find(&funds).Error
+		if err != nil {
+			http.Error(w, err.Error(), http.StatusInternalServerError)
+			return
+		}
+
+		lo.ForEach(funds, func(fund *crawler.Fund, _ int) {
+			fundHouseIDs = append(fundHouseIDs, fund.FundManagers[0].ID)
+		})
+	}
+
 	// Convert perPage and page to integers
 	perPageInt, err := strconv.Atoi(perPage)
 	if err != nil {
@@ -60,6 +75,8 @@ func getFundHouseList(w http.ResponseWriter, r *http.Request) {
 	tx := db.Find(&crawler.FundManager{}).Limit(perPageInt).Offset((pageInt - 1) * perPageInt)
 	if r.URL.Query().Has("id") {
 		tx = tx.Where("id = ?", r.URL.Query().Get("id"))
+	} else if isUnverified {
+		tx = tx.Where("id in ?", fundHouseIDs)
 	}
 	err = tx.Find(&fundManagers).Error
 	if err != nil {
@@ -314,7 +331,7 @@ func getFundsListByFundHouse(w http.ResponseWriter, r *http.Request) {
 		apiData[i] = Fund{
 			Name:        fund.Name,
 			ID:          strconv.FormatUint(fund.ID, 10),
-			DisplayName: fund.DisplayName(),
+			DisplayName: fund.OptDisplayName(),
 			IsHidden:    fund.IsHidden,
 			MergedWith:  mergedWith,
 		}
