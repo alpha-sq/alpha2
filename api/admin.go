@@ -420,3 +420,114 @@ func reFetchReport(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func unmergeFund(w http.ResponseWriter, r *http.Request) {
+
+	db := crawler.Conn()
+
+	fundID := chi.URLParam(r, "fund_id")
+	if fundID == "" {
+		http.Error(w, "fund_id is required", http.StatusBadRequest)
+		return
+	}
+
+	fundHouseID := chi.URLParam(r, "fund_house_id")
+	if fundHouseID == "" {
+		http.Error(w, "fund_house_id is required", http.StatusBadRequest)
+		return
+	}
+
+	err := db.Model(&crawler.FundReport{}).Where("other_data ->> 'merged_id' = ?", fundID).Delete(&crawler.FundReport{}).Error
+	if err != nil {
+		http.Error(w, "error during deleting reports", http.StatusInternalServerError)
+		return
+	}
+
+	fund := &crawler.Fund{}
+	err = db.Model(&crawler.Fund{}).Where("id = ?", fundID).Find(fund).Error
+	if err != nil {
+		http.Error(w, "error during fetching fund", http.StatusBadRequest)
+		return
+	}
+
+	delete(fund.OtherData, "original_id")
+	fund.IsHidden = false
+	err = db.Save(fund).Error
+	if err != nil {
+		http.Error(w, "error during saving fund", http.StatusInternalServerError)
+		return
+	}
+
+	fundHouseIDUint64, err := strconv.ParseUint(fundHouseID, 10, 64)
+	if err != nil {
+		http.Error(w, "error during parsing fund house ID", http.StatusBadRequest)
+		return
+	}
+
+	err = pmf.ScheduleDataConsistencyJobIsNotPresent(fundHouseIDUint64)
+	if err != nil {
+		http.Error(w, "error during scheduling data consistency job", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func mergeFund(w http.ResponseWriter, r *http.Request) {
+
+	db := crawler.Conn()
+
+	fundID := chi.URLParam(r, "fund_id")
+	if fundID == "" {
+		http.Error(w, "fund_id is required", http.StatusBadRequest)
+		return
+	}
+
+	mergeFundID := chi.URLParam(r, "merge_fund_id")
+	if fundID == "" {
+		http.Error(w, "merge_fund_id is required", http.StatusBadRequest)
+		return
+	}
+
+	fundHouseID := chi.URLParam(r, "fund_house_id")
+	if fundHouseID == "" {
+		http.Error(w, "fund_house_id is required", http.StatusBadRequest)
+		return
+	}
+
+	fund := &crawler.Fund{}
+	err := db.Model(&crawler.Fund{}).Where("id = ?", fundID).Find(fund).Error
+	if err != nil {
+		http.Error(w, "error during fetching fund", http.StatusBadRequest)
+		return
+	}
+	mergefund := &crawler.Fund{}
+	err = db.Model(&crawler.Fund{}).Where("id = ?", mergeFundID).Find(mergefund).Error
+	if err != nil {
+		http.Error(w, "error during fetching fund", http.StatusBadRequest)
+		return
+	}
+
+	fund.OtherData["original_id"] = mergeFundID
+	fund.OtherData["label"] = mergefund.OtherData["label"]
+	fund.IsHidden = true
+	err = db.Save(fund).Error
+	if err != nil {
+		http.Error(w, "error during saving fund", http.StatusInternalServerError)
+		return
+	}
+
+	fundHouseIDUint64, err := strconv.ParseUint(fundHouseID, 10, 64)
+	if err != nil {
+		http.Error(w, "error during parsing fund house ID", http.StatusBadRequest)
+		return
+	}
+
+	err = pmf.ScheduleDataConsistencyJobIsNotPresent(fundHouseIDUint64)
+	if err != nil {
+		http.Error(w, "error during scheduling data consistency job", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
