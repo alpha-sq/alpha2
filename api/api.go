@@ -125,6 +125,8 @@ func RunServer() {
 
 		r.Get("/admin/fund-house/{fund_house_id}/funds", getFundsListByFundHouse)
 		r.Post("/admin/fund-house/{fund_house_id}/action/refetch-reports", reFetchReport)
+		r.Post("/admin/fund-house/{fund_house_id}/fund/{fund_id}/action/hide", hideFund)
+		r.Post("/admin/fund-house/{fund_house_id}/fund/{fund_id}/action/unhide", unhideFund)
 		r.Post("/admin/fund-house/{fund_house_id}/fund/{fund_id}/action/unmerge", unmergeFund)
 		r.Post("/admin/fund-house/{fund_house_id}/fund/{fund_id}/action/merge/{merge_fund_id}", mergeFund)
 

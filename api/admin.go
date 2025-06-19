@@ -531,3 +531,41 @@ func mergeFund(w http.ResponseWriter, r *http.Request) {
 
 	w.WriteHeader(http.StatusOK)
 }
+
+func hideFund(w http.ResponseWriter, r *http.Request) {
+
+	db := crawler.Conn()
+
+	fundID := chi.URLParam(r, "fund_id")
+	if fundID == "" {
+		http.Error(w, "fund_id is required", http.StatusBadRequest)
+		return
+	}
+
+	err := db.Model(&crawler.Fund{}).Where("id = ?", fundID).Update("is_hidden", true).Error
+	if err != nil {
+		http.Error(w, "error during hiding fund", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
+
+func unhideFund(w http.ResponseWriter, r *http.Request) {
+
+	db := crawler.Conn()
+
+	fundID := chi.URLParam(r, "fund_id")
+	if fundID == "" {
+		http.Error(w, "fund_id is required", http.StatusBadRequest)
+		return
+	}
+
+	err := db.Model(&crawler.Fund{}).Where("id = ?", fundID).Update("is_hidden", false).Error
+	if err != nil {
+		http.Error(w, "error during hiding fund", http.StatusInternalServerError)
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+}
