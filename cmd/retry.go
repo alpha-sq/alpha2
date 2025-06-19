@@ -6,11 +6,13 @@ package cmd
 import (
 	"alpha2/crawler"
 	"alpha2/crawler/pmf"
-	"encoding/json"
+	"alpha2/jobs"
+	"time"
 
+	"github.com/reugn/go-quartz/quartz"
 	"github.com/rs/zerolog/log"
+	"github.com/samber/lo"
 	"github.com/spf13/cobra"
-	"gorm.io/gorm/clause"
 )
 
 // retryCmd represents the retry command
@@ -19,19 +21,44 @@ var retryCmd = &cobra.Command{
 	Short: "Retry failed crawl",
 	Long:  `Retry failed crawl. This command will retry the failed crawl from the last successful crawl.`,
 	Run: func(cmd *cobra.Command, args []string) {
-		crawl := pmf.NewPMFCrawler()
 		db := crawler.Conn()
-		crawl.ReTryFailed(func(funds []*crawler.Fund) {
-			for _, fund := range funds {
-				err := db.Model(&crawler.Fund{}).Clauses(clause.OnConflict{
-					DoNothing: true,
-				}).Create(fund)
-				if err.Error != nil {
-					jsonfund, _ := json.Marshal(fund)
-					log.Error().Err(err.Error).RawJSON("fund", jsonfund).Msg("Error while saving funds")
+		jobs.Init()
+
+		var managers []crawler.FundManager
+		err := db.Model(&crawler.FundManager{}).Find(&managers).Error
+		if err != nil {
+			log.Error().Err(err).Msg("Failed to fetch fund managers")
+			return
+		}
+		if len(managers) == 0 {
+			log.Info().Msg("No fund managers found")
+			return
+		}
+		for _, manager := range managers {
+			startDate := time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC)
+			endDate := time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC)
+			UID := manager.OtherData["UID"]
+			for startDate.Before(endDate) {
+				forDate := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, time.UTC)
+
+				job := &pmf.CrawlPMFFunds{
+					UID:      UID,
+					ForDate:  forDate.Format(time.DateOnly),
+					SkipNext: true,
 				}
+				randJobID := lo.RandomString(10, []rune("abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"))
+				jd := quartz.NewJobDetail(job, quartz.NewJobKeyWithGroup(randJobID, "CrawlPMFFunds"))
+				t := quartz.NewRunOnceTrigger(time.Second * 5)
+				err := jobs.Scheduler.ScheduleJob(jd, t)
+				if err != nil {
+					log.Error().Err(err).Msg("Failed to schedule job")
+					continue
+				}
+
+				startDate = time.Date(startDate.Year(), startDate.Month()+1, 1, 0, 0, 0, 0, time.UTC)
 			}
-		})
+		}
+
 	},
 }
 
