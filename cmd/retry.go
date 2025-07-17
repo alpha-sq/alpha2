@@ -35,8 +35,8 @@ var retryCmd = &cobra.Command{
 			return
 		}
 		for _, manager := range managers {
-			startDate := time.Date(2025, 4, 1, 0, 0, 0, 0, time.UTC)
-			endDate := time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC)
+			startDate := time.Date(2025, 5, 1, 0, 0, 0, 0, time.UTC)
+			endDate := time.Date(2025, 7, 1, 0, 0, 0, 0, time.UTC)
 			UID := manager.OtherData["UID"]
 			for startDate.Before(endDate) {
 				forDate := time.Date(startDate.Year(), startDate.Month(), 1, 0, 0, 0, 0, time.UTC)
