@@ -309,8 +309,8 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			FourthLastYear *float64 `json:"fourthLastYear"`
 			FifthLastYear  *float64 `json:"fifthLastYear"`
 
-			SharpeRatio *float64 `json:"sharpeRatio"`
-			MaxDrawdown *float64 `json:"maxDrawdown"`
+			// SharpeRatio *float64 `json:"sharpeRatio"`
+			// MaxDrawdown *float64 `json:"maxDrawdown"`
 
 			Slug string `json:"slug"`
 		} `json:"data"`
@@ -543,25 +543,25 @@ func getExplorePMSData(w http.ResponseWriter, r *http.Request) {
 			ThirdLastYear  *float64 `json:"thirdLastYear"`
 			FourthLastYear *float64 `json:"fourthLastYear"`
 			FifthLastYear  *float64 `json:"fifthLastYear"`
-			SharpeRatio    *float64 "json:\"sharpeRatio\""
-			MaxDrawdown    *float64 "json:\"maxDrawdown\""
+			// SharpeRatio    *float64 "json:\"sharpeRatio\""
+			// MaxDrawdown    *float64 "json:\"maxDrawdown\""
 
 			Slug string `json:"slug"`
 		}{
-			ID:          fund.ID,
-			Name:        ToTitleCase(fund.DisplayName()),
-			Manager:     manager,
-			AUM:         Round(report.AUM()),
-			OneMonth:    Round(report.Month1Returns),
-			ThreeMonth:  Round(report.Month3Returns),
-			SixMonth:    Round(report.Month6Returns),
-			OneYear:     Round(report.Yr1Returns),
-			TwoYear:     Round(report.Yr2Returns),
-			ThreeYear:   Round(report.Yr3Returns),
-			FourYear:    Round(report.Yr4Returns),
-			FiveYear:    Round(report.Yr5Returns),
-			SharpeRatio: Round(fund.SharpeRatio3Yrs),
-			MaxDrawdown: Round(fund.MaxDrawdown3Yrs),
+			ID:         fund.ID,
+			Name:       ToTitleCase(fund.DisplayName()),
+			Manager:    manager,
+			AUM:        Round(report.AUM()),
+			OneMonth:   Round(report.Month1Returns),
+			ThreeMonth: Round(report.Month3Returns),
+			SixMonth:   Round(report.Month6Returns),
+			OneYear:    Round(report.Yr1Returns),
+			TwoYear:    Round(report.Yr2Returns),
+			ThreeYear:  Round(report.Yr3Returns),
+			FourYear:   Round(report.Yr4Returns),
+			FiveYear:   Round(report.Yr5Returns),
+			// SharpeRatio: Round(fund.SharpeRatio3Yrs),
+			// MaxDrawdown: Round(fund.MaxDrawdown3Yrs),
 
 			LastYear:       Round(computeReturns(report.Yr1Returns)),
 			SecondLastYear: Round(computeReturns2(report.Yr1Returns, report.Yr2Returns, 2)),
